@@ -2,7 +2,7 @@
 
 A living log of what has been built, how, and what comes next. Anyone (human or AI assistant) can read this file and continue the work without any prior context.
 
-> **Resume here →** Phase 1 is done and pushed. **Next: Phase 2 — User Management.**
+> **Resume here →** Phases 1–3 are done (2 and 3 are tested by the developer, awaiting the owner's joint re-test before push). **Next: Phase 4 — AI Provider Management.**
 
 ## The assignment in one paragraph
 
@@ -24,9 +24,9 @@ Build a production-ready REST backend for the [EchoGPT Chrome extension](https:/
 | --- | --- | --- |
 | 0 | Foundation: project, database schema, config, errors, Swagger, Docker | ✅ Done |
 | 1 | Authentication | ✅ Done |
-| 2 | User Management | ⏭️ Next |
-| 3 | Subscription Management | ⬜ |
-| 4 | AI Provider Management | ⬜ |
+| 2 | User Management | ✅ Done |
+| 3 | Subscription Management | ✅ Done |
+| 4 | AI Provider Management | ⏭️ Next |
 | 5 | Chat API | ⬜ |
 | 6 | Web Search API | ⬜ |
 | 7 | Admin Panel APIs | ⬜ |
@@ -105,22 +105,98 @@ Common mistakes: putting the access token in the body (it goes in the header / A
 
 ---
 
-## Phase 2 — User Management ⏭️ (next)
+## Phase 2 — User Management ✅
 
-- [ ] `GET /users/me` — view profile
-- [ ] `PATCH /users/me` — update name / avatar
-- [ ] `PATCH /users/me/password` — change password (needs current password; logs out other devices)
-- [ ] `DELETE /users/me` — delete account (needs password confirmation)
-- [ ] Roles: prove `@Roles('ADMIN')` blocks normal users (full admin user management comes in Phase 7)
-- [ ] Smoke tests
+**Endpoints** (Swagger tag **Users**, all need login)
 
-## Phase 3 — Subscription Management
+| Method | Path | Who | What it does |
+| --- | --- | --- | --- |
+| GET | `/users/me` | Any user | View my profile |
+| PATCH | `/users/me` | Any user | Update my name / avatar (only the fields sent) |
+| PATCH | `/users/me/password` | Any user | Change password → all devices signed out, fresh tokens for this one |
+| DELETE | `/users/me` | Any user | Delete my account (password required) |
+| PATCH | `/users/{id}/role` | **Admin** | Promote to ADMIN / demote to USER |
 
-- [ ] `GET /plans` — list Free/Premium plans (public)
-- [ ] `GET /subscriptions/me` — current plan and status
-- [ ] `POST /subscriptions/upgrade` and `/downgrade` (no real payment — status change only)
-- [ ] Usage limits enforced per UTC day (chat + search) from the `plans` table
-- [ ] `GET /subscriptions/me/usage` — used / remaining requests today
+**Checklist**
+
+- [x] Profile view and update (email and role cannot be changed through the profile)
+- [x] Change password: current password required, new one must differ, all sessions revoked
+- [x] Delete account: password required, all the user's data removed by database cascades
+- [x] User roles: admin-only role change; the last admin can never be deleted or demoted
+- [x] First admin account created by `npm run db:seed` from `ADMIN_EMAIL` / `ADMIN_PASSWORD`
+- [x] Shared password rules for register and change-password
+- [x] Smoke tests: `src/users/users.service.spec.ts` (4 tests)
+
+**How it works (in plain words)**
+
+- **"me" endpoints.** The server knows who you are from the access token, so users can only ever read or change their *own* account. There is no id to tamper with.
+- **PATCH = partial update.** Only the fields you send change. `null` clears a field. Unknown fields such as `email` or `role` are rejected with 400.
+- **Password change signs out everywhere.** If someone else knew the old password, their sessions die too. You get new tokens straight away, so you stay logged in on this device.
+- **Wrong confirmation password returns 403, not 401.** A 401 would make the extension think the login expired and log the user out.
+- **Delete is permanent.** Database cascades remove sessions, subscription, chats, searches and usage. Request logs are kept for statistics with the user id removed. A deleted user's token stops working on the very next request.
+- **Roles are checked on every request** from the database, so a promotion or demotion takes effect immediately without logging in again.
+
+**Test guide** (log in first; Swagger applies the token automatically)
+
+| # | Do this | Expect |
+| --- | --- | --- |
+| 1 | `GET /users/me` | **200** with your profile (no password hash) |
+| 2 | `PATCH /users/me` `{ "fullName": "Your Name", "avatarUrl": "https://example.com/me.png" }` | **200** with the new values |
+| 3 | `PATCH /users/me` `{ "email": "x@y.com" }` | **400** "property email should not exist" |
+| 4 | `PATCH /users/me/password` with a wrong `currentPassword` | **403** "Current password is incorrect" |
+| 5 | Same with `newPassword` equal to the current one | **400** "must be different" |
+| 6 | Correct change | **200** + new tokens; login with the old password → **401** |
+| 7 | As a normal user: `PATCH /users/{your id}/role` `{ "role": "ADMIN" }` | **403** "Insufficient role" |
+| 8 | Log in as `admin@echogpt.local` / `Admin12345`, repeat step 7 | **200**, role ADMIN (set it back to USER) |
+| 9 | As admin, demote your own id to USER | **409** "Cannot demote the last admin" |
+| 10 | Throwaway account: `DELETE /users/me` `{ "password": "..." }` | **200**; then `GET /users/me` → **401** "Account is no longer active" |
+
+---
+
+## Phase 3 — Subscription Management ✅
+
+**Endpoints** (Swagger tag **Subscriptions**)
+
+| Method | Path | Login | What it does |
+| --- | --- | --- | --- |
+| GET | `/plans` | No | List Free and Premium with prices and limits |
+| GET | `/subscriptions/me` | Yes | My plan and status |
+| GET | `/subscriptions/me/usage` | Yes | Requests used and remaining today, and when they reset |
+| POST | `/subscriptions/me/upgrade` | Yes | Free → Premium for 30 days |
+| POST | `/subscriptions/me/downgrade` | Yes | Premium → Free immediately |
+
+**Checklist**
+
+- [x] Free & Premium plans (limits stored in the `plans` table, not in code)
+- [x] Subscription status API
+- [x] Upgrade / downgrade (no payment provider: upgrade grants a 30-day period)
+- [x] Usage limits: `UsageService.assertWithinLimit()` → **429** when today's quota is used; `record()` after a successful request
+- [x] Remaining requests API
+- [x] Expired Premium falls back to Free automatically
+- [x] Smoke tests: `src/subscriptions/subscriptions.spec.ts` (4 tests)
+
+**How it works (in plain words)**
+
+- **Plans live in the database.** Free allows 20 chats and 10 searches per day. Premium allows 500 and 200. Changing a limit is a data change, not a code change, and `null` means unlimited.
+- **Status values.** `ACTIVE` means the plan is in force. `CANCELED` means the user downgraded to Free. `EXPIRED` means the Premium period ran out and the account went back to Free.
+- **No scheduled job for expiry.** Each time a subscription is read, the server checks whether the Premium end date has passed. If it has, it switches the account to Free right there. This is simpler and can't be missed if a server restarts.
+- **Usage counting.** Each successful chat or search adds one row to `usage_records`. "Used today" counts rows since 00:00 UTC (06:00 in Bangladesh). The check runs *before* the work and the record is written *after* it succeeds, so failed AI calls never use up quota. The counts use an existing database index, so they stay fast with many rows.
+- **Payments are out of scope.** In production, a payment provider (e.g. Stripe) webhook would call the same upgrade logic.
+
+**Test guide**
+
+| # | Do this | Expect |
+| --- | --- | --- |
+| 1 | `GET /plans` (no login needed) | **200** — FREE $0 (20 chat / 10 search), PREMIUM 999 cents (500 / 200) |
+| 2 | Log in, `GET /subscriptions/me` | **200** — status ACTIVE, plan FREE |
+| 3 | `GET /subscriptions/me/usage` | chat 20 remaining, search 10 remaining, `resetsAt` = next 00:00 UTC |
+| 4 | `POST /subscriptions/me/downgrade` while on Free | **409** "Already on the Free plan" |
+| 5 | `POST /subscriptions/me/upgrade` | **200** "Upgraded to Premium until …" (30 days) |
+| 6 | Upgrade again | **409** "Already on Premium until …" |
+| 7 | `GET /subscriptions/me/usage` | limits are now 500 / 200 |
+| 8 | `POST /subscriptions/me/downgrade` | **200** — status CANCELED, plan FREE |
+
+The **429 limit** itself can be triggered by hand from Phase 5 (chat) onwards. Until then it is covered by the smoke test and by a database-simulated check.
 
 ## Phase 4 — AI Provider Management (admin)
 

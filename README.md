@@ -31,6 +31,8 @@ src/
   common/                # shared guards, decorators, middleware, filters, DTOs
   health/                # GET /api/v1/health
   auth/                  # register, login, refresh, logout (JWT + sessions)
+  users/                 # profile, password change, account deletion, roles
+  subscriptions/         # plans, subscription status, upgrade/downgrade, usage limits
 ```
 
 ## Getting started
@@ -104,6 +106,30 @@ The API container applies migrations and seeds reference data automatically on s
 - Refresh tokens rotate on every use; replaying an old one revokes the session.
 - Every route requires a valid access token unless it is explicitly public; admin routes also check the role.
 - In Swagger UI, logging in or registering applies the access token to **Authorize** automatically.
+
+`npm run db:seed` also creates a first admin from `ADMIN_EMAIL` / `ADMIN_PASSWORD` when they are set.
+
+## Users
+
+| Endpoint | Auth | Description |
+| --- | --- | --- |
+| `GET /api/v1/users/me` | Bearer | My profile |
+| `PATCH /api/v1/users/me` | Bearer | Update name / avatar |
+| `PATCH /api/v1/users/me/password` | Bearer | Change password (revokes all sessions, returns new tokens) |
+| `DELETE /api/v1/users/me` | Bearer | Delete my account (password required) |
+| `PATCH /api/v1/users/:id/role` | Admin | Promote / demote a user (the last admin is protected) |
+
+## Subscriptions & usage limits
+
+| Endpoint | Auth | Description |
+| --- | --- | --- |
+| `GET /api/v1/plans` | Public | Free and Premium plans with prices and daily limits |
+| `GET /api/v1/subscriptions/me` | Bearer | Current plan and status (`ACTIVE` / `CANCELED` / `EXPIRED`) |
+| `GET /api/v1/subscriptions/me/usage` | Bearer | Requests used and remaining today |
+| `POST /api/v1/subscriptions/me/upgrade` | Bearer | Start a 30-day Premium period |
+| `POST /api/v1/subscriptions/me/downgrade` | Bearer | Return to Free immediately |
+
+Daily limits (per UTC day) come from the `plans` table: Free 20 chats / 10 searches, Premium 500 / 200. When a limit is reached, chat and search return **429** with the reset time. Payment processing is out of scope.
 
 ## Useful scripts
 
