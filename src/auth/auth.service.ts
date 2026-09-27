@@ -168,6 +168,15 @@ export class AuthService {
     return result.count;
   }
 
+  /** Starts a fresh session for an already-verified user (e.g. after a password change). */
+  async startSession(userId: string, meta: ClientMeta): Promise<AuthResponseDto> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      include: { role: true },
+    });
+    return this.issueTokens(user, meta);
+  }
+
   private async issueTokens(user: UserWithRole, meta: ClientMeta): Promise<AuthResponseDto> {
     const sessionId = randomUUID();
     const refreshToken = this.signRefreshToken(user.id, sessionId);

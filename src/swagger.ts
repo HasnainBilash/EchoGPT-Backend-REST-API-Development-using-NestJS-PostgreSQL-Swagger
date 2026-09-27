@@ -32,14 +32,13 @@ function annotateProtectedOperations(document: OpenAPIObject): void {
 }
 
 /**
- * Runs in the browser (serialized by @nestjs/swagger): after a successful login/register/refresh,
- * applies the returned access token to the Authorize dialog so testers don't have to paste it.
+ * Runs in the browser (serialized by @nestjs/swagger): whenever a response issues tokens
+ * (login, register, refresh, change password), applies the access token to Authorize.
  */
-function autoAuthorize(res: { url: string; ok: boolean; obj?: { accessToken?: unknown } }) {
-  const isTokenEndpoint = /\/auth\/(login|register|refresh)$/.test(res.url);
+function autoAuthorize(res: { ok: boolean; obj?: { accessToken?: unknown } }) {
   const token = res.obj?.accessToken;
   const ui = (globalThis as { ui?: { preauthorizeApiKey(name: string, value: string): void } }).ui;
-  if (isTokenEndpoint && res.ok && typeof token === 'string' && ui) {
+  if (res.ok && typeof token === 'string' && ui) {
     ui.preauthorizeApiKey('access-token', token);
   }
   return res;

@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsEmail, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MaxLength } from 'class-validator';
+import { StrongPassword } from '../../common/decorators/strong-password.decorator';
 
 export class RegisterDto {
   @ApiProperty({ example: 'jane@example.com' })
@@ -15,12 +16,7 @@ export class RegisterDto {
     example: 'Str0ngPassw0rd!',
     description: 'At least 8 characters, with at least one letter and one number.',
   })
-  @IsString()
-  @MinLength(8)
-  @MaxLength(72)
-  @Matches(/^(?=.*[A-Za-z])(?=.*\d).+$/, {
-    message: 'password must contain at least one letter and one number',
-  })
+  @StrongPassword()
   password: string;
 
   @ApiPropertyOptional({ example: 'Jane Doe' })
