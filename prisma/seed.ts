@@ -1,4 +1,6 @@
+import 'dotenv/config';
 import { PlanCode, PrismaClient, RoleName } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
@@ -43,6 +45,39 @@ async function main() {
   });
 
   console.log('Seeded roles and plans');
+
+  await seedAdmin();
+}
+
+/** Creates the first admin from ADMIN_EMAIL / ADMIN_PASSWORD if set. Never overwrites an existing user. */
+async function seedAdmin() {
+  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.ADMIN_PASSWORD;
+  if (!email || !password) {
+    console.log('ADMIN_EMAIL / ADMIN_PASSWORD not set — skipping admin account');
+    return;
+  }
+
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    console.log(`Admin seed skipped: ${email} already exists`);
+    return;
+  }
+
+  const [adminRole, premium] = await Promise.all([
+    prisma.role.findUniqueOrThrow({ where: { name: RoleName.ADMIN } }),
+    prisma.plan.findUniqueOrThrow({ where: { code: PlanCode.PREMIUM } }),
+  ]);
+  await prisma.user.create({
+    data: {
+      email,
+      passwordHash: await bcrypt.hash(password, 10),
+      fullName: 'Administrator',
+      roleId: adminRole.id,
+      subscription: { create: { planId: premium.id } },
+    },
+  });
+  console.log(`Seeded admin account ${email}`);
 }
 
 main()
