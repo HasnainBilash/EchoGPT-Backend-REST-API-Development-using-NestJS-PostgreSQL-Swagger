@@ -43,6 +43,20 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsIn(['true', 'false'])
   SWAGGER_ENABLED?: string;
+
+  @IsString()
+  JWT_ACCESS_SECRET: string;
+
+  @IsOptional()
+  @IsString()
+  JWT_ACCESS_TTL = '15m';
+
+  @IsString()
+  JWT_REFRESH_SECRET: string;
+
+  @IsOptional()
+  @IsString()
+  JWT_REFRESH_TTL = '30d';
 }
 
 export function validateEnv(config: Record<string, unknown>): EnvironmentVariables {

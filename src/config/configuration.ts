@@ -20,6 +20,12 @@ export const configuration = () => {
       ttl: num(env.THROTTLE_TTL_MS, 60000),
       limit: num(env.THROTTLE_LIMIT, 120),
     },
+    jwt: {
+      accessSecret: env.JWT_ACCESS_SECRET as string,
+      accessTtl: env.JWT_ACCESS_TTL ?? '15m',
+      refreshSecret: env.JWT_REFRESH_SECRET as string,
+      refreshTtl: env.JWT_REFRESH_TTL ?? '30d',
+    },
   };
 };
 
