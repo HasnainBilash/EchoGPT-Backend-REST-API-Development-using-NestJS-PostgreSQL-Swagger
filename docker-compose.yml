@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: echogpt-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: echogpt
+      POSTGRES_PASSWORD: echogpt
+      POSTGRES_DB: echogpt
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U echogpt -d echogpt']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    container_name: echogpt-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Inside the compose network the database host is "db", not localhost.
+      DATABASE_URL: postgresql://echogpt:echogpt@db:5432/echogpt?schema=public
+      NODE_ENV: production
+    ports:
+      - '3000:3000'
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
