@@ -1,0 +1,334 @@
+// EchoGPT database schema
+// Conventions: PascalCase models mapped to snake_case tables/columns, UUID primary keys,
+// timestamps in UTC (timestamptz).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Identity & access
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum RoleName {
+  USER
+  ADMIN
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        RoleName @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  users User[]
+
+  @@map("roles")
+}
+
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  email           String    @unique @db.VarChar(255)
+  passwordHash    String    @map("password_hash")
+  fullName        String?   @map("full_name") @db.VarChar(120)
+  avatarUrl       String?   @map("avatar_url") @db.VarChar(2048)
+  roleId          Int       @map("role_id")
+  isActive        Boolean   @default(true) @map("is_active")
+  emailVerifiedAt DateTime? @map("email_verified_at") @db.Timestamptz(3)
+  lastLoginAt     DateTime? @map("last_login_at") @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  role               Role                     @relation(fields: [roleId], references: [id])
+  sessions           Session[]
+  verificationTokens EmailVerificationToken[]
+  subscription       Subscription?
+  conversations      Conversation[]
+  webSearches        WebSearch[]
+  usageRecords       UsageRecord[]
+  apiUsageLogs       ApiUsageLog[]
+
+  @@index([roleId])
+  @@index([createdAt])
+  @@map("users")
+}
+
+/// One row per logged-in device. Holds the hash of the current refresh token (rotated on every refresh).
+model Session {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  refreshTokenHash String    @map("refresh_token_hash") @db.Char(64)
+  userAgent        String?   @map("user_agent") @db.VarChar(512)
+  ipAddress        String?   @map("ip_address") @db.VarChar(45)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(3)
+  lastUsedAt       DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+/// Single-use email verification tokens. Only the SHA-256 hash is stored.
+model EmailVerificationToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.Char(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Plans, subscriptions & metering
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum PlanCode {
+  FREE
+  PREMIUM
+}
+
+model Plan {
+  id               Int      @id @default(autoincrement())
+  code             PlanCode @unique
+  name             String   @db.VarChar(60)
+  description      String?
+  priceCents       Int      @default(0) @map("price_cents")
+  currency         String   @default("USD") @db.Char(3)
+  /// Chat completions allowed per UTC day. NULL = unlimited.
+  dailyChatLimit   Int?     @map("daily_chat_limit")
+  /// Web searches allowed per UTC day. NULL = unlimited.
+  dailySearchLimit Int?     @map("daily_search_limit")
+  allowStreaming   Boolean  @default(false) @map("allow_streaming")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  EXPIRED
+}
+
+/// Current subscription of a user (exactly one per user).
+model Subscription {
+  id               String             @id @default(uuid()) @db.Uuid
+  userId           String             @unique @map("user_id") @db.Uuid
+  planId           Int                @map("plan_id")
+  status           SubscriptionStatus @default(ACTIVE)
+  startedAt        DateTime           @default(now()) @map("started_at") @db.Timestamptz(3)
+  currentPeriodEnd DateTime?          @map("current_period_end") @db.Timestamptz(3)
+  canceledAt       DateTime?          @map("canceled_at") @db.Timestamptz(3)
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id])
+
+  @@index([planId, status])
+  @@map("subscriptions")
+}
+
+enum UsageType {
+  CHAT
+  SEARCH
+}
+
+/// Metered usage (one row per billable chat completion / web search). Drives plan limits & analytics.
+model UsageRecord {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  type             UsageType
+  providerId       String?   @map("provider_id") @db.Uuid
+  model            String?   @db.VarChar(100)
+  promptTokens     Int       @default(0) @map("prompt_tokens")
+  completionTokens Int       @default(0) @map("completion_tokens")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider AiProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+
+  @@index([userId, type, createdAt])
+  @@index([createdAt])
+  @@index([providerId])
+  @@map("usage_records")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI providers
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum AiProviderType {
+  OPENAI
+  ANTHROPIC
+  GEMINI
+}
+
+enum HealthStatus {
+  UNKNOWN
+  HEALTHY
+  UNHEALTHY
+}
+
+model AiProvider {
+  id                String         @id @default(uuid()) @db.Uuid
+  name              String         @unique @db.VarChar(60)
+  type              AiProviderType
+  /// Optional override (e.g. Azure/OpenAI-compatible gateway). NULL = vendor default.
+  baseUrl           String?        @map("base_url") @db.VarChar(2048)
+  /// AES-256-GCM encrypted API key. Never returned by the API.
+  encryptedApiKey   String         @map("encrypted_api_key")
+  apiKeyLast4       String         @map("api_key_last4") @db.VarChar(4)
+  defaultModel      String         @map("default_model") @db.VarChar(100)
+  /// Models users may pick for this provider. Empty = only the default model.
+  models            String[]       @default([])
+  maxOutputTokens   Int            @default(2048) @map("max_output_tokens")
+  isEnabled         Boolean        @default(true) @map("is_enabled")
+  isDefault         Boolean        @default(false) @map("is_default")
+  healthStatus      HealthStatus   @default(UNKNOWN) @map("health_status")
+  healthMessage     String?        @map("health_message") @db.VarChar(500)
+  healthLatencyMs   Int?           @map("health_latency_ms")
+  lastHealthCheckAt DateTime?      @map("last_health_check_at") @db.Timestamptz(3)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  conversations Conversation[]
+  messages      Message[]
+  webSearches   WebSearch[]
+  usageRecords  UsageRecord[]
+
+  @@index([isEnabled])
+  @@map("ai_providers")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chat
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Conversation {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  title      String   @db.VarChar(200)
+  providerId String?  @map("provider_id") @db.Uuid
+  model      String?  @db.VarChar(100)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider AiProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  messages Message[]
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("conversations")
+}
+
+enum MessageRole {
+  SYSTEM
+  USER
+  ASSISTANT
+}
+
+model Message {
+  id               String      @id @default(uuid()) @db.Uuid
+  conversationId   String      @map("conversation_id") @db.Uuid
+  role             MessageRole
+  content          String
+  providerId       String?     @map("provider_id") @db.Uuid
+  model            String?     @db.VarChar(100)
+  promptTokens     Int?        @map("prompt_tokens")
+  completionTokens Int?        @map("completion_tokens")
+  latencyMs        Int?        @map("latency_ms")
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  provider     AiProvider?  @relation(fields: [providerId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Web search
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A search performed by a user. Results are snapshotted so history stays stable after cache expiry.
+model WebSearch {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  query           String   @db.VarChar(500)
+  normalizedQuery String   @map("normalized_query") @db.VarChar(500)
+  engine          String   @db.VarChar(30)
+  results         Json     @default("[]")
+  resultCount     Int      @default(0) @map("result_count")
+  summary         String?
+  providerId      String?  @map("provider_id") @db.Uuid
+  cached          Boolean  @default(false)
+  latencyMs       Int?     @map("latency_ms")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider AiProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([normalizedQuery])
+  @@map("web_searches")
+}
+
+/// Shared cache of search engine results (+ optional AI summary) keyed by a hash of the request.
+model SearchCache {
+  id        String   @id @default(uuid()) @db.Uuid
+  cacheKey  String   @unique @map("cache_key") @db.Char(64)
+  query     String   @db.VarChar(500)
+  engine    String   @db.VarChar(30)
+  results   Json
+  summary   String?
+  hitCount  Int      @default(0) @map("hit_count")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([expiresAt])
+  @@map("search_cache")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Observability
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// HTTP request log (every API call). Used for admin request logs & API usage analytics.
+model ApiUsageLog {
+  id         BigInt   @id @default(autoincrement())
+  userId     String?  @map("user_id") @db.Uuid
+  method     String   @db.VarChar(10)
+  path       String   @db.VarChar(2048)
+  route      String?  @db.VarChar(255)
+  statusCode Int      @map("status_code")
+  durationMs Int      @map("duration_ms")
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  userAgent  String?  @map("user_agent") @db.VarChar(512)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([statusCode])
+  @@map("api_usage_logs")
+}
