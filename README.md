@@ -2,6 +2,8 @@
 
 Backend for the [EchoGPT – Multi AI Chat](https://chromewebstore.google.com/detail/echogpt-multi-ai-chat-sid/negimdcamohmoheiifgecbjgjepkcfhj) Chrome extension, built with **NestJS**, **PostgreSQL**, **Prisma** and **Swagger (OpenAPI)**.
 
+> Build progress, design decisions and per-phase test guides: see [PROGRESS.md](PROGRESS.md).
+
 ## Tech stack
 
 | Concern | Choice |
@@ -26,8 +28,9 @@ src/
   swagger.ts             # OpenAPI document setup
   config/                # env validation + typed configuration
   prisma/                # PrismaService (DB connection)
-  common/                # shared filters, DTOs and decorators
+  common/                # shared guards, decorators, middleware, filters, DTOs
   health/                # GET /api/v1/health
+  auth/                  # register, login, refresh, logout (JWT + sessions)
 ```
 
 ## Getting started
@@ -51,11 +54,15 @@ cp .env.example .env
 
 Every variable is documented in [.env.example](.env.example). The app validates them at startup and refuses to boot if one is missing or invalid.
 
+Set `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` to two different long random values, e.g. `openssl rand -hex 32`.
+
 ### 3. Start PostgreSQL
 
 ```bash
 docker compose up -d db
 ```
+
+No Docker? Any PostgreSQL 16+ works: create user, password and database `echogpt` on port 5432 (or change `DATABASE_URL`).
 
 ### 4. Run migrations and seed data
 
@@ -81,6 +88,22 @@ docker compose up --build
 ```
 
 The API container applies migrations and seeds reference data automatically on startup.
+
+## Authentication
+
+| Endpoint | Auth | Description |
+| --- | --- | --- |
+| `POST /api/v1/auth/register` | Public | Create an account (USER, Free plan) and receive tokens |
+| `POST /api/v1/auth/login` | Public | Email + password → access + refresh token |
+| `POST /api/v1/auth/refresh` | Public | Rotate the refresh token and get a new pair |
+| `POST /api/v1/auth/logout` | Bearer | Revoke the session of the given refresh token |
+| `POST /api/v1/auth/logout-all` | Bearer | Revoke all sessions of the user |
+
+- Send the access token as a header: `Authorization: Bearer <accessToken>` (15 min lifetime).
+- The refresh token (30 days) is only sent in the body of `/auth/refresh` and `/auth/logout`.
+- Refresh tokens rotate on every use; replaying an old one revokes the session.
+- Every route requires a valid access token unless it is explicitly public; admin routes also check the role.
+- In Swagger UI, logging in or registering applies the access token to **Authorize** automatically.
 
 ## Useful scripts
 
