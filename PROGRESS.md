@@ -2,7 +2,7 @@
 
 A living log of what has been built, how, and what comes next. Anyone (human or AI assistant) can read this file and continue the work without any prior context.
 
-> **Resume here →** Phases 1–7 are done (1–6 pushed; 7 tested by the developer, awaiting the owner's re-test before push). **Next: Phase 8 — Polish & submission.**
+> **Resume here →** All phases (0–8) are done and ready for submission. Optional next steps: bonus features (email verification, streaming, search caching) — see "Interview cheat sheet" at the bottom for how to explain the project.
 
 ## The assignment in one paragraph
 
@@ -30,7 +30,7 @@ Build a production-ready REST backend for the [EchoGPT Chrome extension](https:/
 | 5 | Chat API | ✅ Done |
 | 6 | Web Search API | ✅ Done |
 | 7 | Admin Panel APIs | ✅ Done |
-| 8 | Polish & submission (Swagger sweep, Postman, README, final check) | ⏭️ Next |
+| 8 | Polish & submission (Swagger sweep, Postman, README, final check) | ✅ Done |
 
 ---
 
@@ -431,12 +431,61 @@ For a summary you can read, use the Mock AI provider (`npm run mock:ai`). The mo
 | 14 | `GET /admin/system/health?refreshProviders=true` | `degraded` while the fake-key OpenAI is enabled; Mock AI `HEALTHY` |
 | 15 | `DELETE /admin/users/{test user id}` | **200**; `GET` it → **404** |
 
-## Phase 8 — Polish & submission
+## Phase 8 — Polish & submission ✅
 
-- [ ] Swagger sweep: every endpoint has examples and error responses
-- [ ] Postman collection (optional)
-- [ ] Final README, `.env.example` check, fresh-clone test
-- [ ] Submission checklist from the assignment
+**Checklist**
+
+- [x] Swagger sweep: an automated audit of all **50 operations** checks for a summary, tag, 2xx schema, 401 on protected routes, 403 on admin routes, 400 on bodies, 404 on path ids, and at least one documented error. One gap (`GET /plans`) was fixed. Each Swagger section now has a description.
+- [x] Static spec exported to `docs/openapi.json`
+- [x] Postman collection `docs/EchoGPT.postman_collection.json`: generated from the spec, then cleaned up (see below) and **run with Newman** against the live API
+- [x] Fresh-clone test: clone → `npm ci` → `.env` from `.env.example` → new empty database → migrate → seed → build → lint → 28 tests → start → real requests
+- [x] Bug found by the fresh-clone test and fixed: the Prisma client wasn't generated on a clean install. Added `postinstall: prisma generate`, and the Dockerfile now copies the schema before `npm ci`.
+- [x] Dockerfile reviewed (bcrypt ships an Alpine/musl binary; the seed is compiled to `dist/prisma/seed.js`)
+- [x] Final README: highlights, assignment checklist, 2-minute demo, API docs, architecture, security, scalability, design decisions & limitations, testing
+
+**How the Postman collection works**
+
+- Collection-level **Bearer `{{accessToken}}`**. Public requests (register, login, refresh, health, plans) send no auth.
+- Test scripts on login / register / refresh / change-password save `accessToken`, `refreshToken` and `userId`. Creating or listing providers, chats and searches saves `providerId`, `conversationId` and `searchId`. Path ids use those variables.
+- Example bodies come from the Swagger examples. Invented ids were removed, the refresh token uses `{{refreshToken}}`, and risky examples were made safe (editing the FREE plan only sets its own limits).
+- Optional filters start disabled, and delete requests run last in each folder.
+
+**Submission checklist (from the assignment)**
+
+| Asked for | Status |
+| --- | --- |
+| GitHub repository | ✅ github.com/HasnainBilash/EchoGPT-Backend-REST-API-Development-using-NestJS-PostgreSQL-Swagger |
+| README with setup instructions | ✅ `README.md` |
+| Database migration files | ✅ `prisma/migrations/` |
+| API documentation (Swagger) | ✅ `/docs`, `docs/openapi.json` |
+| Sample `.env.example` | ✅ `.env.example` |
+| Postman collection (optional) | ✅ `docs/EchoGPT.postman_collection.json` |
+
+---
+
+## Interview cheat sheet
+
+**One-liner:** a NestJS + PostgreSQL REST backend for a multi-AI Chrome extension. Users chat with OpenAI, Claude or Gemini and run AI-summarized web searches within daily plan limits. Admins manage providers, users, plans and monitoring. Everything is documented in Swagger.
+
+**Walk-through (≈2 minutes):**
+
+1. **Structure.** One NestJS module per feature. Controllers only handle HTTP, services hold the rules, DTOs validate every input. Prisma talks to PostgreSQL, and the whole schema was designed up front and shipped as a migration.
+2. **Security pipeline.** Every request passes: logger → rate limit → JWT guard (all routes private unless `@Public`) → role guard (`@Roles('ADMIN')`) → validation (unknown fields rejected) → handler → one error format.
+3. **Auth.** Short access token (15 min) plus refresh token (30 days). Refresh tokens are stored hashed, one session per device, and rotate on every use. Reusing an old one revokes the session (theft detection). Passwords use bcrypt, and login timing doesn't reveal which emails exist.
+4. **AI providers.** Admin-managed, with keys encrypted with AES-256-GCM and never returned. There is one adapter per vendor behind a single interface, so chat doesn't care which vendor answers. The health check makes a real call to the vendor. Exactly one enabled provider is always the default.
+5. **Chat.** Check the quota, pick the provider/model, send the last 20 messages as context, and save the question, answer and usage in one transaction only if the AI succeeded. A failure returns 502 and costs nothing.
+6. **Search.** DuckDuckGo results plus an AI summary with citations. If the summary fails the results still come back. Saved as history snapshots, with recent searches and suggestions.
+7. **Limits and admin.** Plan limits live in the database, so they're editable live. Usage rows drive both the limits and the analytics. A request-log middleware feeds the request analytics, logs and dashboard.
+8. **Quality.** 28 smoke tests (no database needed), lint, a fresh-clone test, a Postman collection run with Newman, and conventional commits phase by phase.
+
+**Likely questions:**
+
+- *Why two tokens?* A leaked access token dies in 15 minutes. The long-lived refresh token is only sent to one endpoint and is rotated and revocable.
+- *What happens on logout?* The session is revoked, so the refresh token is dead at once. An access token already issued lives until its 15-minute expiry — the standard stateless-JWT trade-off. Deactivating or deleting an account blocks it immediately.
+- *Why store API keys encrypted and not hashed?* We must send the real key to the vendor, so it has to be decryptable — hashing is one-way. Passwords and refresh tokens are only compared, so they're hashed.
+- *How does it scale?* The API is stateless (horizontal scaling), queries are indexed and paginated, and logging is non-blocking. Next steps would be a Redis store for rate limiting and archiving old logs.
+- *Why 404 instead of 403 for other users' chats?* So nobody can even confirm that an id exists.
+- *What would you add next?* The bonus items (email verification, streaming, search caching — their tables exist), a real payment webhook, and e2e tests against a test database.
 
 ---
 

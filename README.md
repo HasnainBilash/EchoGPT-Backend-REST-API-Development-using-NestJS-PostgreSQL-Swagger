@@ -4,6 +4,32 @@ Backend for the [EchoGPT – Multi AI Chat](https://chromewebstore.google.com/de
 
 > Build progress, design decisions and per-phase test guides: see [PROGRESS.md](PROGRESS.md).
 
+## Highlights
+
+- **50 documented endpoints** across auth, users, subscriptions, AI providers, chat, web search and an admin panel, all explorable in Swagger UI.
+- **Real multi-provider AI**: OpenAI, Anthropic (Claude) and Google Gemini behind one adapter interface, with API keys encrypted at rest (AES-256-GCM).
+- **Secure by default**: every route requires a JWT unless marked public, role checks for admin routes, rotating refresh tokens with reuse detection, bcrypt passwords, input whitelisting, rate limiting and security headers.
+- **Plan-based usage limits**: daily chat and search quotas read from the database, with a remaining-requests API.
+- **Observability**: every request is logged and powers the admin analytics, request logs and system health.
+- **Demo without API keys**: a bundled OpenAI-compatible mock server (`npm run mock:ai`).
+
+## Assignment checklist
+
+| Requirement | Where |
+| --- | --- |
+| Registration, login, secure logout, JWT, refresh tokens, password hashing | [Authentication](#authentication) — `src/auth` |
+| Profile, update profile, change password, delete account, roles | [Users](#users), [Admin panel](#admin-panel) — `src/users` |
+| Free & Premium plans, status, upgrade/downgrade, usage limits, remaining requests | [Subscriptions](#subscriptions--usage-limits) — `src/subscriptions` |
+| Add / edit / delete / enable / disable providers, secure keys, default, health check | [AI providers](#ai-providers) — `src/providers` |
+| Send prompt, AI response, provider selection, conversation history | [Chat](#chat) — `src/chat` |
+| Search query, history, recent searches, suggestions | [Web search](#web-search) — `src/search` |
+| Dashboard, user/subscription/provider management, usage analytics, request logs, system health | [Admin panel](#admin-panel) — `src/admin` |
+| Swagger for every endpoint (params, bodies, examples, errors, auth) | `/docs`, [docs/openapi.json](docs/openapi.json) |
+| Normalized PostgreSQL schema + migrations | [prisma/schema.prisma](prisma/schema.prisma), [prisma/migrations](prisma/migrations) |
+| README, `.env.example`, Docker | this file, [.env.example](.env.example), [Dockerfile](Dockerfile), [docker-compose.yml](docker-compose.yml) |
+| Postman collection (optional) | [docs/EchoGPT.postman_collection.json](docs/EchoGPT.postman_collection.json) |
+| Bonus: email verification, streaming, search caching | Not implemented (tables `email_verification_tokens` and `search_cache` are ready) |
+
 ## Tech stack
 
 | Concern | Choice |
@@ -17,11 +43,14 @@ Backend for the [EchoGPT – Multi AI Chat](https://chromewebstore.google.com/de
 
 ## Project structure
 
-```
+```text
 prisma/
   schema.prisma          # database schema
   migrations/            # SQL migration files
-  seed.ts                # roles + subscription plans
+  seed.ts                # roles, subscription plans, first admin
+docs/
+  openapi.json           # exported OpenAPI 3 spec
+  EchoGPT.postman_collection.json
 src/
   main.ts                # bootstrap: security headers, CORS, validation, versioning, Swagger
   app.module.ts          # root module
@@ -51,7 +80,7 @@ scripts/
 ### 1. Install dependencies
 
 ```bash
-npm install
+npm install   # also generates the Prisma client (postinstall)
 ```
 
 ### 2. Configure environment
@@ -76,7 +105,7 @@ No Docker? Any PostgreSQL 16+ works: create user, password and database `echogpt
 
 ```bash
 npx prisma migrate deploy   # apply migrations in prisma/migrations
-npm run db:seed             # create roles (USER, ADMIN) and plans (FREE, PREMIUM)
+npm run db:seed             # roles (USER, ADMIN), plans (FREE, PREMIUM), first admin
 ```
 
 ### 5. Start the API
@@ -96,6 +125,79 @@ docker compose up --build
 ```
 
 The API container applies migrations and seeds reference data automatically on startup.
+
+### 2-minute demo
+
+1. `npm run mock:ai` in a second terminal (fake OpenAI-compatible AI, no key needed).
+2. Open http://localhost:3000/docs and run **Auth → POST /auth/login** with the seeded admin
+   `admin@echogpt.local` / `Admin12345` (from `.env.example`). Swagger applies the token automatically.
+3. **Admin · AI Providers → POST /admin/providers** with
+   `{ "name": "Mock AI", "type": "OPENAI", "apiKey": "mock-key-1234", "defaultModel": "mock-echo", "baseUrl": "http://localhost:4010/v1" }`.
+4. **Auth → POST /auth/register** a normal user, then try **Chat → POST /chat/messages** and **Web Search → POST /search**.
+5. Log back in as admin and open **GET /admin/dashboard** and **GET /admin/analytics/usage**.
+
+With real vendor keys, add OpenAI / Anthropic / Gemini providers the same way (without `baseUrl`).
+
+## API documentation
+
+- **Swagger UI**: http://localhost:3000/docs — every endpoint with parameters, bodies, examples, error responses and auth requirements. Protected endpoints are marked with a padlock and a "Requires login" note.
+- **OpenAPI spec**: live at `/docs/openapi.json`, exported to [docs/openapi.json](docs/openapi.json).
+- **Postman**: import [docs/EchoGPT.postman_collection.json](docs/EchoGPT.postman_collection.json). Logging in stores the tokens in collection variables, protected requests use them automatically, and ids (`conversationId`, `providerId`, …) are captured by the requests that create them.
+
+## Architecture
+
+```text
+Request
+  → ApiUsageLoggerMiddleware   logs method, route, status, duration, user (on response finish)
+  → ThrottlerGuard             rate limit per IP (stricter on login/register)
+  → JwtAuthGuard               valid access token required unless @Public()
+  → RolesGuard                 @Roles('ADMIN') on admin controllers
+  → ValidationPipe             DTO validation; unknown fields rejected
+  → Controller → Service → Prisma → PostgreSQL
+  → AllExceptionsFilter        every error returned as { statusCode, error, message, path, timestamp }
+```
+
+- **One module per feature** (`auth`, `users`, `subscriptions`, `providers`, `chat`, `search`, `admin`): controllers handle HTTP and Swagger, services hold business rules, DTOs define and validate every input and output.
+- **AI vendors are adapters** (`src/providers/adapters`) implementing `checkHealth()` and `chat()`. Chat and search depend only on the interface.
+- **Search engine is a client class** (`src/search/duckduckgo.client.ts`), so swapping DuckDuckGo for a paid engine touches one file.
+- **Configuration** is validated at startup (`src/config/env.validation.ts`) — the app refuses to boot with a missing or malformed secret.
+
+## Security
+
+- Passwords hashed with **bcrypt**. Login takes the same time whether or not the email exists.
+- **JWT access tokens** (15 min) plus **refresh tokens** (30 days) stored only as SHA-256 hashes, one session per device. Rotation on every refresh, and **replay of an old refresh token revokes the session**.
+- The user is re-checked on every request, so deactivated or deleted accounts are locked out immediately.
+- **Role-based access**: admin controllers require `ADMIN`. The last admin can never be deleted, demoted or deactivated.
+- **AI provider keys encrypted at rest** with AES-256-GCM and never returned (masked to the last 4 characters).
+- **Input validation** on every body and query. Unknown fields are rejected, so mass assignment (e.g. `role`) is impossible.
+- Ownership checks on chats and searches return **404** for other users' data, so ids can't be probed.
+- **helmet** security headers, configurable **CORS** (`CORS_ORIGINS`), global and per-route **rate limiting**.
+- Raw SQL (analytics only) uses Prisma's parameterized `Prisma.sql` — no string concatenation.
+
+## Scalability notes
+
+- The API is **stateless** (JWT auth, sessions in PostgreSQL), so it can run as several instances behind a load balancer.
+- Queries that grow with data use **indexes** defined in the schema (usage by user/type/date, conversations by user/updated, logs by date/status…) and every list endpoint is **paginated**.
+- Request logging is **fire-and-forget** on response finish, so it never slows a request down.
+- Plan limits live in the database, so pricing changes need no deploy. Expired Premium periods are resolved on read — no cron job to run or scale.
+- For multi-instance production: move the rate-limit store to Redis (`@nestjs/throttler` storage), and archive `api_usage_logs` periodically.
+
+## Design decisions & limitations
+
+- **No payment provider**: upgrading starts a 30-day Premium period directly. In production a payment webhook would call the same logic.
+- **DuckDuckGo Instant Answer** is free and keyless but is not a full web index. Topics ("NestJS") return results, while question-style queries often return none (reported as 0 results, not an error).
+- **Logout** revokes the session (refresh token) immediately. An already-issued access token stays valid until it expires (at most 15 minutes) — the usual trade-off of stateless JWTs. Deactivating or deleting an account blocks it at once.
+- **Bonus features skipped** to keep the scope focused: email verification, streaming responses and search result caching. Their tables already exist in the schema.
+- Failed AI calls return **502** and are neither saved nor counted against the user's quota.
+
+## Testing
+
+```bash
+npm test        # 28 smoke tests across auth, users, subscriptions, providers, chat, search and admin
+npm run lint    # ESLint + Prettier
+```
+
+The unit tests run without a database (Prisma and HTTP are replaced with in-memory fakes). Step-by-step manual test guides for every feature, with expected results, are in [PROGRESS.md](PROGRESS.md).
 
 ## Authentication
 
@@ -236,14 +338,14 @@ All `/admin/*` endpoints require the `ADMIN` role (log in with the seeded `ADMIN
 | `users` | Accounts (email, password hash, profile, role, status) |
 | `roles` | `USER` / `ADMIN` |
 | `sessions` | One row per logged-in device; stores the hashed refresh token |
-| `email_verification_tokens` | Hashed single-use email verification tokens |
+| `email_verification_tokens` | Hashed single-use email verification tokens (reserved for the bonus feature) |
 | `plans` | `FREE` / `PREMIUM` with daily limits |
 | `subscriptions` | Each user's current plan |
 | `usage_records` | One row per chat/search request; used for usage limits |
 | `ai_providers` | OpenAI / Anthropic / Gemini configs with encrypted API keys |
 | `conversations`, `messages` | Chat history |
 | `web_searches` | Search history (with result snapshot) |
-| `search_cache` | Cached search results |
+| `search_cache` | Cached search results (reserved for the bonus feature) |
 | `api_usage_logs` | Log of every API request (admin analytics & request logs) |
 
 ## Error format
