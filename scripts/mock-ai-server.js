@@ -7,6 +7,7 @@
  *       "defaultModel": "mock-echo", "baseUrl": "http://localhost:4010/v1" }
  *
  * Replies echo the prompt and report how much conversation context was received.
+ * Supports `stream: true` (Server-Sent Events, one chunk per word) like the real API.
  */
 const http = require('node:http');
 
@@ -43,15 +44,37 @@ const server = http.createServer((req, res) => {
         `[mock ${body.model}] You said: "${last}". ` +
         `I received ${earlier} earlier message(s) as context.`;
       const words = (text) => text.split(/\s+/).filter(Boolean).length;
+      const usage = {
+        prompt_tokens: messages.reduce((n, m) => n + words(String(m.content ?? '')), 0),
+        completion_tokens: words(content),
+      };
+
+      if (body.stream) {
+        // OpenAI-style Server-Sent Events: one chunk per word, then usage, then [DONE].
+        res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
+        const chunk = (payload) => res.write(`data: ${JSON.stringify(payload)}\n\n`);
+        const pieces = content.split(/(?<= )/);
+        let i = 0;
+        const timer = setInterval(() => {
+          if (i < pieces.length) {
+            chunk({ object: 'chat.completion.chunk', choices: [{ index: 0, delta: { content: pieces[i++] } }] });
+            return;
+          }
+          clearInterval(timer);
+          if (body.stream_options?.include_usage) chunk({ object: 'chat.completion.chunk', choices: [], usage });
+          res.write('data: [DONE]\n\n');
+          res.end();
+        }, 40);
+        res.on('close', () => clearInterval(timer)); // client disconnected (or finished)
+        return;
+      }
+
       send(res, 200, {
         id: `chatcmpl-mock-${Date.now()}`,
         object: 'chat.completion',
         model: body.model,
         choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }],
-        usage: {
-          prompt_tokens: messages.reduce((n, m) => n + words(String(m.content ?? '')), 0),
-          completion_tokens: words(content),
-        },
+        usage,
       });
     });
     return;

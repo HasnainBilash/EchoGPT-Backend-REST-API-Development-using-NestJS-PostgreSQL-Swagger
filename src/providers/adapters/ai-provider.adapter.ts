@@ -24,6 +24,11 @@ export interface ChatResult {
   completionTokens: number;
 }
 
+/** A piece of a streamed reply: more text, or token counts (usually at the end). */
+export type ChatStreamEvent =
+  | { type: 'text'; text: string }
+  | { type: 'usage'; promptTokens?: number; completionTokens?: number };
+
 /** One implementation per AI vendor. Callers only depend on this interface. */
 export interface AiProviderAdapter {
   readonly type: AiProviderType;
@@ -33,4 +38,11 @@ export interface AiProviderAdapter {
 
   /** Sends the conversation and returns the model's reply. Throws ProviderRequestError on failure. */
   chat(connection: ProviderConnection, request: ChatRequest): Promise<ChatResult>;
+
+  /** Same as `chat`, but yields the reply as it is generated. Aborting `signal` stops it. */
+  chatStream(
+    connection: ProviderConnection,
+    request: ChatRequest,
+    signal: AbortSignal,
+  ): AsyncGenerator<ChatStreamEvent>;
 }

@@ -1,17 +1,19 @@
 import {
   BadGatewayException,
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { AiProvider, Message, MessageRole, Prisma, UsageType } from '@prisma/client';
+import { AiProvider, Conversation, Message, MessageRole, Prisma, UsageType } from '@prisma/client';
 import { PaginationQueryDto, pageMeta } from '../common/dto/pagination.dto';
 import { PrismaService } from '../prisma/prisma.service';
-import { ChatTurn } from '../providers/adapters/ai-provider.adapter';
+import { ChatRequest, ChatResult, ChatTurn } from '../providers/adapters/ai-provider.adapter';
 import { ProviderAdapterRegistry } from '../providers/adapters/provider-adapter.registry';
-import { ProviderRequestError } from '../providers/adapters/provider-http';
+import { ProviderRequestError, STREAM_TIMEOUT_MS } from '../providers/adapters/provider-http';
 import { ProvidersService } from '../providers/providers.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { UsageService } from '../subscriptions/usage.service';
 import {
   ConversationDetailDto,
@@ -33,6 +35,16 @@ const SUMMARY_INCLUDE = {
 
 type ConversationRow = Prisma.ConversationGetPayload<{ include: typeof SUMMARY_INCLUDE }>;
 
+/** Everything decided before calling the AI; shared by the normal and streaming endpoints. */
+export interface PreparedChat {
+  userId: string;
+  message: string;
+  conversation: Conversation | null;
+  provider: AiProvider;
+  model: string;
+  turns: ChatTurn[];
+}
+
 @Injectable()
 export class ChatService {
   private readonly logger = new Logger(ChatService.name);
@@ -42,9 +54,79 @@ export class ChatService {
     private readonly providers: ProvidersService,
     private readonly adapters: ProviderAdapterRegistry,
     private readonly usage: UsageService,
+    private readonly subscriptions: SubscriptionsService,
   ) {}
 
   async sendMessage(userId: string, dto: SendMessageDto): Promise<SendMessageResponseDto> {
+    const chat = await this.prepare(userId, dto);
+    const sentAt = new Date();
+    let result: ChatResult;
+    try {
+      result = await this.adapters
+        .get(chat.provider.type)
+        .chat(this.providers.connectionOf(chat.provider), this.requestOf(chat));
+    } catch (err) {
+      throw this.providerFailure(chat.provider, err);
+    }
+    return this.saveExchange(chat, result, sentAt, new Date());
+  }
+
+  /**
+   * Checks for a streamed reply. Runs before any byte is streamed, so every failure here is a
+   * normal JSON error response. Streaming is a Premium feature (`plans.allow_streaming`).
+   */
+  async prepareStream(userId: string, dto: SendMessageDto): Promise<PreparedChat> {
+    const { plan } = await this.subscriptions.getCurrent(userId);
+    if (!plan.allowStreaming) {
+      throw new ForbiddenException(
+        'Streaming responses are a Premium feature — upgrade, or use POST /chat/messages',
+      );
+    }
+    return this.prepare(userId, dto);
+  }
+
+  /**
+   * Streams the reply through `onText` as it is generated, then saves the exchange exactly like
+   * `sendMessage`. If the client disconnects (`signal`) or the provider fails, nothing is saved
+   * and no quota is used.
+   */
+  async streamReply(
+    chat: PreparedChat,
+    signal: AbortSignal,
+    onText: (text: string) => void,
+  ): Promise<SendMessageResponseDto> {
+    const sentAt = new Date();
+    const result: ChatResult = { content: '', promptTokens: 0, completionTokens: 0 };
+    const stopSignal = AbortSignal.any([signal, AbortSignal.timeout(STREAM_TIMEOUT_MS)]);
+
+    try {
+      const events = this.adapters
+        .get(chat.provider.type)
+        .chatStream(this.providers.connectionOf(chat.provider), this.requestOf(chat), stopSignal);
+      for await (const event of events) {
+        if (event.type === 'text') {
+          result.content += event.text;
+          onText(event.text);
+        } else {
+          result.promptTokens = event.promptTokens ?? result.promptTokens;
+          result.completionTokens = event.completionTokens ?? result.completionTokens;
+        }
+      }
+    } catch (err) {
+      throw this.providerFailure(chat.provider, err);
+    }
+
+    if (signal.aborted) {
+      throw new BadRequestException('Stream cancelled by the client');
+    }
+    if (!result.content) {
+      throw new BadGatewayException(`AI provider "${chat.provider.name}" returned an empty reply`);
+    }
+    return this.saveExchange(chat, result, sentAt, new Date());
+  }
+
+  /** Limit check, conversation ownership, provider/model choice and the context sent to the AI. */
+  private async prepare(userId: string, dto: SendMessageDto): Promise<PreparedChat> {
     await this.usage.assertWithinLimit(userId, UsageType.CHAT);
 
     const conversation = dto.conversationId
@@ -66,24 +148,34 @@ export class ChatService {
       { role: 'user', content: dto.message },
     ];
 
-    const sentAt = new Date();
-    let result;
-    try {
-      result = await this.adapters.get(provider.type).chat(this.providers.connectionOf(provider), {
-        model,
-        messages: turns,
-        maxOutputTokens: provider.maxOutputTokens,
-      });
-    } catch (err) {
-      if (err instanceof ProviderRequestError) {
-        // Nothing is saved and no quota is used for a failed call.
-        this.logger.warn(`Chat via "${provider.name}" failed: ${err.message}`);
-        throw new BadGatewayException(`AI provider "${provider.name}" failed: ${err.summary}`);
-      }
-      throw err;
-    }
-    const repliedAt = new Date();
+    return { userId, message: dto.message, conversation, provider, model, turns };
+  }
 
+  private requestOf(chat: PreparedChat): ChatRequest {
+    return {
+      model: chat.model,
+      messages: chat.turns,
+      maxOutputTokens: chat.provider.maxOutputTokens,
+    };
+  }
+
+  /** Vendor errors become 502 with a short, user-safe reason; the full detail is logged. */
+  private providerFailure(provider: AiProvider, err: unknown): unknown {
+    if (err instanceof ProviderRequestError) {
+      this.logger.warn(`Chat via "${provider.name}" failed: ${err.message}`);
+      return new BadGatewayException(`AI provider "${provider.name}" failed: ${err.summary}`);
+    }
+    return err;
+  }
+
+  /** Saves the question, the reply and one usage record together — only after a successful reply. */
+  private async saveExchange(
+    chat: PreparedChat,
+    result: ChatResult,
+    sentAt: Date,
+    repliedAt: Date,
+  ): Promise<SendMessageResponseDto> {
+    const { userId, conversation, provider, model } = chat;
     const saved = await this.prisma.$transaction(async (tx) => {
       const conv = conversation
         ? await tx.conversation.update({
@@ -91,7 +183,7 @@ export class ChatService {
             data: { providerId: provider.id, model },
           })
         : await tx.conversation.create({
-            data: { userId, title: makeTitle(dto.message), providerId: provider.id, model },
+            data: { userId, title: makeTitle(chat.message), providerId: provider.id, model },
           });
 
       // Explicit timestamps: inside one transaction now() is identical, which would make order ambiguous.
@@ -99,7 +191,7 @@ export class ChatService {
         data: {
           conversationId: conv.id,
           role: MessageRole.USER,
-          content: dto.message,
+          content: chat.message,
           createdAt: sentAt,
         },
       });
