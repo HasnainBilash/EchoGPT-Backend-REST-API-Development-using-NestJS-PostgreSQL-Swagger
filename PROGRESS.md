@@ -1,22 +1,21 @@
 # EchoGPT Backend — Progress & Handover
 
-A living log of what has been built, how, and what comes next. Anyone (human or AI assistant) can read this file and continue the work without any prior context.
+A development log of what was built, how each part works, and how to test it — written so anyone can pick the project up without prior context.
 
-> **Resume here →** All phases (0–9) are done and pushed, including the three bonus features. The project is ready for submission — see "Interview cheat sheet" at the bottom for how to explain it.
+> **Status:** all phases (0–9) are complete, including the three bonus features.
 
 ## The assignment in one paragraph
 
 Build a production-ready REST backend for the [EchoGPT Chrome extension](https://chromewebstore.google.com/detail/echogpt-multi-ai-chat-sid/negimdcamohmoheiifgecbjgjepkcfhj) with **NestJS, PostgreSQL, Prisma, Swagger and JWT**: authentication, user management, Free/Premium subscriptions with usage limits, admin-managed AI providers (OpenAI, Anthropic, Gemini), a chat API, an AI-assisted web search API, and admin panel APIs. Graded on architecture, REST design, DB design, code quality, security, auth, error handling, Swagger docs, scalability and git history. **Deadline: 29 September 2026.**
 
-## Ground rules
+## Approach
 
 - Build **only what the assignment asks**. Small additions are fine when they are cheap and save effort later.
 - **Bonus items** (email verification, streaming responses, search result caching) were skipped at first to secure the required scope, then added in Phase 9.
-- Each phase: build → test everything against the live API + database → write a test guide → owner re-tests → commit & push → update this file → push.
+- Each phase: build → test against the live API and database → write a test guide → re-test by hand → commit & push → update this file.
 - AI provider calls are **real HTTP calls**, but no API keys are available, so everything must fail gracefully (clean error, no crash) without them.
 - Web search uses **DuckDuckGo Instant Answer** (free, no key).
 - One thin **smoke test file per module** (runs without a database).
-- Commits are authored by **Bilash** only, no co-author lines.
 
 ## Phase overview
 
@@ -518,33 +517,6 @@ For a summary you can read, use the Mock AI provider (`npm run mock:ai`). The mo
 | 6 | As a **Free** user: `POST /chat/messages/stream` `{ "message": "hi" }` | **403** "Streaming responses are a Premium feature" |
 | 7 | Upgrade (`POST /subscriptions/me/upgrade`), run `npm run mock:ai`, repeat with `"providerId": "<Mock AI id>"` | a `text/event-stream` with `start`, many `delta`, and `done` (Swagger shows it all once finished; `curl -N` shows it live) |
 | 8 | Same with the fake-key OpenAI `providerId` | `event: error` with 502 "Invalid or unauthorized API key"; usage unchanged |
-
----
-
-## Interview cheat sheet
-
-**One-liner:** a NestJS + PostgreSQL REST backend for a multi-AI Chrome extension. Users chat with OpenAI, Claude or Gemini and run AI-summarized web searches within daily plan limits. Admins manage providers, users, plans and monitoring. Everything is documented in Swagger.
-
-**Walk-through (≈2 minutes):**
-
-1. **Structure.** One NestJS module per feature. Controllers only handle HTTP, services hold the rules, DTOs validate every input. Prisma talks to PostgreSQL, and the whole schema was designed up front and shipped as a migration.
-2. **Security pipeline.** Every request passes: logger → rate limit → JWT guard (all routes private unless `@Public`) → role guard (`@Roles('ADMIN')`) → validation (unknown fields rejected) → handler → one error format.
-3. **Auth.** Short access token (15 min) plus refresh token (30 days). Refresh tokens are stored hashed, one session per device, and rotate on every use. Reusing an old one revokes the session (theft detection). Passwords use bcrypt, and login timing doesn't reveal which emails exist.
-4. **AI providers.** Admin-managed, with keys encrypted with AES-256-GCM and never returned. There is one adapter per vendor behind a single interface, so chat doesn't care which vendor answers. The health check makes a real call to the vendor. Exactly one enabled provider is always the default.
-5. **Chat.** Check the quota, pick the provider/model, send the last 20 messages as context, and save the question, answer and usage in one transaction only if the AI succeeded. A failure returns 502 and costs nothing.
-6. **Search.** DuckDuckGo results plus an AI summary with citations. If the summary fails the results still come back. Saved as history snapshots, with recent searches and suggestions.
-7. **Limits and admin.** Plan limits live in the database, so they're editable live. Usage rows drive both the limits and the analytics. A request-log middleware feeds the request analytics, logs and dashboard.
-8. **Quality.** 41 smoke tests (no database needed), lint, a fresh-clone test, a Postman collection run with Newman, and conventional commits phase by phase.
-
-**Likely questions:**
-
-- *Why two tokens?* A leaked access token dies in 15 minutes. The long-lived refresh token is only sent to one endpoint and is rotated and revocable.
-- *What happens on logout?* The session is revoked, so the refresh token is dead at once. An access token already issued lives until its 15-minute expiry — the standard stateless-JWT trade-off. Deactivating or deleting an account blocks it immediately.
-- *Why store API keys encrypted and not hashed?* We must send the real key to the vendor, so it has to be decryptable — hashing is one-way. Passwords and refresh tokens are only compared, so they're hashed.
-- *How does it scale?* The API is stateless (horizontal scaling), queries are indexed and paginated, and logging is non-blocking. Next steps would be a Redis store for rate limiting and archiving old logs.
-- *Why 404 instead of 403 for other users' chats?* So nobody can even confirm that an id exists.
-- *How does streaming work?* The vendors stream Server-Sent Events. Each adapter turns its vendor's format into simple "text" and "usage" pieces, and our endpoint re-streams them as `start` / `delta` / `done` events. All checks run before the first byte, and the reply is saved only when the stream completes, so a failure or disconnect costs nothing.
-- *What would you add next?* A real payment webhook, enforcing email verification with a guard, a Redis rate-limit store for multiple instances, and e2e tests against a test database.
 
 ---
 
