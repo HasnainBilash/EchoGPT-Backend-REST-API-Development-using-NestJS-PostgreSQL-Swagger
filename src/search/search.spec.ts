@@ -1,3 +1,5 @@
+import { ConfigService } from '@nestjs/config';
+import { AppConfig } from '../config/configuration';
 import { AiProviderType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProviderAdapterRegistry } from '../providers/adapters/provider-adapter.registry';
@@ -5,6 +7,7 @@ import { ProviderRequestError } from '../providers/adapters/provider-http';
 import { ProvidersService } from '../providers/providers.service';
 import { UsageService } from '../subscriptions/usage.service';
 import { DuckDuckGoClient } from './duckduckgo.client';
+import { SearchCacheService } from './search-cache.service';
 import { normalizeQuery, SearchService } from './search.service';
 
 const ddgBody = {
@@ -61,6 +64,26 @@ describe('DuckDuckGoClient (smoke)', () => {
   });
 });
 
+/** In-memory stand-in for the search_cache table. */
+function fakeCachePrisma() {
+  const rows = new Map<string, Record<string, unknown>>();
+  return {
+    searchCache: {
+      findUnique: jest.fn(({ where }: { where: { cacheKey: string } }) =>
+        Promise.resolve(rows.get(where.cacheKey) ?? null),
+      ),
+      update: jest.fn(() => Promise.resolve({})),
+      upsert: jest.fn(({ create }: { create: Record<string, unknown> }) => {
+        rows.set(create.cacheKey as string, create);
+        return Promise.resolve(create);
+      }),
+      deleteMany: jest.fn(() => Promise.resolve({ count: 0 })),
+    },
+  };
+}
+const cacheConfig = (ttl: number) =>
+  ({ get: () => ({ cacheTtlSeconds: ttl }) }) as unknown as ConfigService<AppConfig, true>;
+
 describe('SearchService (smoke)', () => {
   it('still saves and returns the results when the AI summary fails', async () => {
     const saved: Record<string, unknown>[] = [];
@@ -73,7 +96,10 @@ describe('SearchService (smoke)', () => {
       },
       usageRecord: { create: jest.fn() },
     };
-    const prisma = { $transaction: jest.fn((fn: (t: typeof tx) => unknown) => fn(tx)) };
+    const prisma = {
+      $transaction: jest.fn((fn: (t: typeof tx) => unknown) => fn(tx)),
+      ...fakeCachePrisma(),
+    };
     const engine = {
       engine: 'duckduckgo',
       search: jest
@@ -104,6 +130,7 @@ describe('SearchService (smoke)', () => {
     const service = new SearchService(
       prisma as unknown as PrismaService,
       engine as unknown as DuckDuckGoClient,
+      new SearchCacheService(prisma as unknown as PrismaService, cacheConfig(3600)),
       providers as unknown as ProvidersService,
       adapters as unknown as ProviderAdapterRegistry,
       usage as unknown as UsageService,
@@ -114,8 +141,26 @@ describe('SearchService (smoke)', () => {
     expect(res.resultCount).toBe(1);
     expect(res.summary).toBeNull();
     expect(res.summaryError).toBe('AI provider "OpenAI" failed: Invalid key (HTTP 401)');
-    expect(saved[0]).toMatchObject({ normalizedQuery: 'nestjs framework', providerId: null });
+    expect(saved[0]).toMatchObject({
+      normalizedQuery: 'nestjs framework',
+      providerId: null,
+      cached: false,
+    });
     expect(tx.usageRecord.create).toHaveBeenCalled();
+
+    // Same query, different spacing/case: served from the cache, engine not called again.
+    const again = await service.search('u2', { query: 'nestjs framework', summarize: false });
+    expect(again.cached).toBe(true);
+    expect(again.resultCount).toBe(1);
+    expect(engine.search).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not cache when the TTL is 0', async () => {
+    const prisma = fakeCachePrisma();
+    const cache = new SearchCacheService(prisma as unknown as PrismaService, cacheConfig(0));
+    await cache.set('duckduckgo', 'q', 'q', []);
+    await expect(cache.get('duckduckgo', 'q')).resolves.toBeNull();
+    expect(prisma.searchCache.upsert).not.toHaveBeenCalled();
   });
 
   it('normalizes queries for history matching', () => {

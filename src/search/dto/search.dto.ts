@@ -89,6 +89,12 @@ export class SearchSummaryDto {
   @ApiProperty({ example: 5 })
   resultCount: number;
 
+  @ApiProperty({
+    example: false,
+    description: 'true when the results came from the search cache instead of the engine.',
+  })
+  cached: boolean;
+
   @ApiProperty({ example: true, description: 'Whether an AI summary was saved.' })
   hasSummary: boolean;
 

@@ -13,6 +13,7 @@ import { ProviderRequestError } from '../providers/adapters/provider-http';
 import { ProvidersService } from '../providers/providers.service';
 import { UsageService } from '../subscriptions/usage.service';
 import { DuckDuckGoClient, SearchEngineError, SearchResultItem } from './duckduckgo.client';
+import { SearchCacheService } from './search-cache.service';
 import {
   RecentSearchDto,
   SearchDetailDto,
@@ -43,6 +44,7 @@ export class SearchService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly engine: DuckDuckGoClient,
+    private readonly cache: SearchCacheService,
     private readonly providers: ProvidersService,
     private readonly adapters: ProviderAdapterRegistry,
     private readonly usage: UsageService,
@@ -65,15 +67,20 @@ export class SearchService {
       }
     }
 
-    let results: SearchResultItem[];
-    try {
-      results = await this.engine.search(dto.query);
-    } catch (err) {
-      if (err instanceof SearchEngineError) {
-        // Nothing saved and no quota used when the engine is down.
-        throw new BadGatewayException(err.message);
+    const normalized = normalizeQuery(dto.query);
+    let results = await this.cache.get(this.engine.engine, normalized);
+    const cached = results !== null;
+    if (!results) {
+      try {
+        results = await this.engine.search(dto.query);
+      } catch (err) {
+        if (err instanceof SearchEngineError) {
+          // Nothing saved and no quota used when the engine is down.
+          throw new BadGatewayException(err.message);
+        }
+        throw err;
       }
-      throw err;
+      await this.cache.set(this.engine.engine, dto.query, normalized, results);
     }
 
     let summary: string | null = null;
@@ -92,12 +99,13 @@ export class SearchService {
         data: {
           userId,
           query: dto.query,
-          normalizedQuery: normalizeQuery(dto.query),
+          normalizedQuery: normalized,
           engine: this.engine.engine,
           results: results as unknown as Prisma.InputJsonValue,
           resultCount: results.length,
           summary,
           providerId: summary ? provider!.id : null,
+          cached,
           latencyMs: Date.now() - started,
         },
         include: WITH_PROVIDER,
@@ -225,6 +233,7 @@ function toSummary(row: WebSearch): SearchSummaryDto {
     query: row.query,
     engine: row.engine,
     resultCount: row.resultCount,
+    cached: row.cached,
     hasSummary: row.summary !== null,
     latencyMs: row.latencyMs,
     createdAt: row.createdAt,
