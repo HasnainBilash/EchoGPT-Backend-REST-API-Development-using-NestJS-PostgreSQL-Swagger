@@ -2,7 +2,7 @@
 
 A living log of what has been built, how, and what comes next. Anyone (human or AI assistant) can read this file and continue the work without any prior context.
 
-> **Resume here →** Phases 1–4 are done (1–3 pushed; 4 tested by the developer, awaiting the owner's re-test before push). **Next: Phase 5 — Chat API.**
+> **Resume here →** Phases 1–5 are done (1–4 pushed; 5 tested by the developer, awaiting the owner's re-test before push). **Next: Phase 6 — Web Search API.**
 
 ## The assignment in one paragraph
 
@@ -27,8 +27,8 @@ Build a production-ready REST backend for the [EchoGPT Chrome extension](https:/
 | 2 | User Management | ✅ Done |
 | 3 | Subscription Management | ✅ Done |
 | 4 | AI Provider Management | ✅ Done |
-| 5 | Chat API | ⏭️ Next |
-| 6 | Web Search API | ⬜ |
+| 5 | Chat API | ✅ Done |
+| 6 | Web Search API | ⏭️ Next |
 | 7 | Admin Panel APIs | ⬜ |
 | 8 | Polish & submission (Swagger sweep, Postman, README, final check) | ⬜ |
 
@@ -253,12 +253,59 @@ The **429 limit** itself can be triggered by hand from Phase 5 (chat) onwards. U
 
 With a **real** API key, step 6 returns `HEALTHY` with the latency.
 
-## Phase 5 — Chat API
+---
 
-- [ ] Send a prompt → AI response through a common adapter per provider
-- [ ] Choose the provider/model, or use the default
-- [ ] Conversation history: list, view, delete
-- [ ] Counts toward plan limits (429 when used up)
+## Phase 5 — Chat API ✅
+
+**Endpoints** (Swagger tag **Chat**, all need login)
+
+| Method | Path | What it does |
+| --- | --- | --- |
+| POST | `/chat/messages` | Send a prompt, get the AI reply (new or existing conversation) |
+| GET | `/chat/conversations?page=&limit=` | My conversations, most recent first (paginated) |
+| GET | `/chat/conversations/{id}` | One conversation with all its messages |
+| PATCH | `/chat/conversations/{id}` | Rename |
+| DELETE | `/chat/conversations/{id}` | Delete with its messages |
+
+**Checklist**
+
+- [x] Send prompt / receive AI response through the provider adapters (real HTTP calls)
+- [x] Provider selection (`providerId`) and model selection (`model`), with sensible fallbacks
+- [x] Conversation history: list (paginated), view, rename, delete
+- [x] Last 20 messages sent to the AI as context
+- [x] Daily chat limit enforced (429); failed AI calls return 502 and use no quota
+- [x] Mock OpenAI-compatible server for demos without API keys (`npm run mock:ai`)
+- [x] Smoke tests: `src/chat/chat.spec.ts` (4 tests)
+
+**How it works (in plain words)**
+
+- **One endpoint to chat.** Leave out `conversationId` and a new conversation is created, titled from your first message. Send it and the chat continues. The last 20 messages go to the AI with the new prompt, so it remembers what was said.
+- **Which AI answers?** If you send a `providerId`, that provider answers (it must exist and be enabled). Otherwise the conversation keeps the provider it already uses, and a brand-new chat uses the default. The model works the same way: the one you ask for (it must be in that provider's list), else the one the chat already uses, else the provider's default model.
+- **Same code for every vendor.** The chat service builds one standard request. The adapter for OpenAI, Anthropic or Gemini converts it to that vendor's format: Anthropic wants the system prompt as a separate field, and Gemini calls the assistant "model". The adapter also reads the reply and token counts back.
+- **Order of work:** check the daily limit (429 if used up), call the AI, and only if that succeeds save the question, the answer and one usage record together in a single database transaction. If the AI call fails, the user gets **502** with a short reason, and nothing is saved or counted. The full vendor error goes to the server log.
+- **Privacy.** Every lookup is filtered by the logged-in user. Someone else's conversation returns **404**, not 403, so ids can't even be confirmed to exist.
+- **Stored per reply:** model, prompt/completion tokens and response time, for the admin analytics in Phase 7.
+- **Mock AI.** `npm run mock:ai` starts a small local server that speaks the OpenAI API and echoes your prompt. It also says how many earlier messages it received, which proves the context works. Add it as a provider with `baseUrl: http://localhost:4010/v1`.
+
+**Test guide**
+
+Setup: run `npm run mock:ai` in a second terminal. As admin, add the provider below (or reuse the existing **Mock AI** one):
+`{ "name": "Mock AI", "type": "OPENAI", "apiKey": "mock-key-1234", "defaultModel": "mock-echo", "models": ["mock-echo", "mock-smart"], "baseUrl": "http://localhost:4010/v1" }`
+
+| # | Do this (as a normal user) | Expect |
+| --- | --- | --- |
+| 1 | `GET /providers` → copy the Mock AI `id` | listed with models `mock-echo`, `mock-smart` |
+| 2 | `POST /chat/messages` `{ "message": "What is REST?", "providerId": "<mock id>" }` | **200** — reply `[mock mock-echo] You said: "What is REST?" … 0 earlier message(s)`; `usage.remaining` 19 |
+| 3 | Same with `"conversationId": "<id from step 2>"` and a new message (no providerId) | reply says **2 earlier message(s)** — the context works; same provider kept |
+| 4 | Add `"model": "mock-smart"` | reply from `mock-smart`; later messages keep it |
+| 5 | `"model": "gpt-9"` | **400** listing the allowed models |
+| 6 | `"providerId": "<the OpenAI id with a fake key>"` | **502** "AI provider "OpenAI" failed: Invalid or unauthorized API key (HTTP 401)"; usage unchanged |
+| 7 | `GET /chat/conversations` | your chat with `messageCount`, newest first |
+| 8 | `GET /chat/conversations/{id}` | messages in order: user, assistant, user, assistant… |
+| 9 | `PATCH /chat/conversations/{id}` `{ "title": "My chat" }` | renamed |
+| 10 | Log in as another user, `GET /chat/conversations/{same id}` | **404** |
+| 11 | Send more than 20 messages in one day on Free | **429** "Daily chat limit reached (20/20)…" |
+| 12 | `DELETE /chat/conversations/{id}` | **200**; `GET` it again → **404** |
 
 ## Phase 6 — Web Search API
 

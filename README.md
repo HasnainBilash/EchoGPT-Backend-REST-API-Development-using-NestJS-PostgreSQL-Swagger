@@ -34,6 +34,9 @@ src/
   users/                 # profile, password change, account deletion, roles
   subscriptions/         # plans, subscription status, upgrade/downgrade, usage limits
   providers/             # AI provider management (admin), vendor adapters, health checks
+  chat/                  # send prompt, AI reply, conversation history
+scripts/
+  mock-ai-server.js      # OpenAI-compatible mock for demos without API keys
 ```
 
 ## Getting started
@@ -152,6 +155,27 @@ Admins manage the AI vendors the platform uses; users pick one of the enabled pr
 - While any provider is enabled, exactly one enabled provider is the default; disabling or deleting it hands the role to another.
 - Each vendor has an adapter implementing one interface (`src/providers/adapters`), so adding a vendor is one new class.
 
+## Chat
+
+| Endpoint | Auth | Description |
+| --- | --- | --- |
+| `POST /api/v1/chat/messages` | Bearer | Send a prompt and get the AI reply (optional `conversationId`, `providerId`, `model`) |
+| `GET /api/v1/chat/conversations` | Bearer | My conversations, paginated (`page`, `limit`) |
+| `GET /api/v1/chat/conversations/:id` | Bearer | A conversation with its messages |
+| `PATCH /api/v1/chat/conversations/:id` | Bearer | Rename |
+| `DELETE /api/v1/chat/conversations/:id` | Bearer | Delete |
+
+- The last 20 messages are sent as context. Provider: requested → the conversation's → default. Model: requested (must be offered) → the conversation's → provider default.
+- Checks the daily chat limit first (**429**). If the AI provider fails the response is **502** and nothing is saved or counted.
+
+### Trying chat without an API key
+
+```bash
+npm run mock:ai   # OpenAI-compatible mock on http://localhost:4010/v1
+```
+
+Then, as an admin, add a provider: `{ "name": "Mock AI", "type": "OPENAI", "apiKey": "mock-key-1234", "defaultModel": "mock-echo", "baseUrl": "http://localhost:4010/v1" }`.
+
 ## Useful scripts
 
 | Script | Description |
@@ -163,7 +187,8 @@ Admins manage the AI vendors the platform uses; users pick one of the enabled pr
 | `npm test` | Unit tests |
 | `npm run prisma:migrate` | Create a new migration from schema changes (dev) |
 | `npm run prisma:deploy` | Apply pending migrations |
-| `npm run db:seed` | Seed roles and plans |
+| `npm run db:seed` | Seed roles, plans and the first admin |
+| `npm run mock:ai` | Start the mock AI server for demos without API keys |
 | `npm run prisma:studio` | Browse the database in a GUI |
 
 ## Database design
