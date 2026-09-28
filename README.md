@@ -198,7 +198,7 @@ Request
 ## Testing
 
 ```bash
-npm test        # 39 smoke tests across auth, users, subscriptions, providers, chat, search and admin
+npm test        # 41 smoke tests across auth, users, subscriptions, providers, chat, search and admin
 npm run lint    # ESLint + Prettier
 ```
 

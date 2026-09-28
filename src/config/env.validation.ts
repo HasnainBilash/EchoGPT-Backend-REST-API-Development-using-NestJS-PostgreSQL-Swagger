@@ -79,6 +79,8 @@ export class EnvironmentVariables {
   @Min(0)
   SEARCH_CACHE_TTL_SECONDS = 3600;
 
+  // Empty in .env.example means "use the default".
+  @Transform(({ value }: { value: unknown }) => (value === '' ? undefined : value))
   @IsOptional()
   @IsUrl({ require_tld: false, require_protocol: true })
   EMAIL_VERIFICATION_URL?: string;

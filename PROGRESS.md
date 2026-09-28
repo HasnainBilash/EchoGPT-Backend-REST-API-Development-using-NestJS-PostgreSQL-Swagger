@@ -484,7 +484,7 @@ For a summary you can read, use the Mock AI provider (`npm run mock:ai`). The mo
 - [x] Streaming is Premium-only (`plans.allow_streaming`), and the mock AI server streams too
 - [x] Search result caching in `search_cache` with `SEARCH_CACHE_TTL_SECONDS` (default 3600, 0 = off)
 - [x] Swagger, `docs/openapi.json` (54 operations) and the Postman collection updated
-- [x] Smoke tests: 11 new (email verification, cache, streaming adapters and service) — **39 in total**
+- [x] Smoke tests: 11 new (email verification, cache, streaming adapters and service) — **41 in total**, including 2 that check `.env.example` boots as-is
 
 **How it works (in plain words)**
 
@@ -534,7 +534,7 @@ For a summary you can read, use the Mock AI provider (`npm run mock:ai`). The mo
 5. **Chat.** Check the quota, pick the provider/model, send the last 20 messages as context, and save the question, answer and usage in one transaction only if the AI succeeded. A failure returns 502 and costs nothing.
 6. **Search.** DuckDuckGo results plus an AI summary with citations. If the summary fails the results still come back. Saved as history snapshots, with recent searches and suggestions.
 7. **Limits and admin.** Plan limits live in the database, so they're editable live. Usage rows drive both the limits and the analytics. A request-log middleware feeds the request analytics, logs and dashboard.
-8. **Quality.** 39 smoke tests (no database needed), lint, a fresh-clone test, a Postman collection run with Newman, and conventional commits phase by phase.
+8. **Quality.** 41 smoke tests (no database needed), lint, a fresh-clone test, a Postman collection run with Newman, and conventional commits phase by phase.
 
 **Likely questions:**
 
