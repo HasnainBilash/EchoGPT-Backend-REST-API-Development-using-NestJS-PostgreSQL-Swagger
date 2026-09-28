@@ -2,7 +2,7 @@
 
 A living log of what has been built, how, and what comes next. Anyone (human or AI assistant) can read this file and continue the work without any prior context.
 
-> **Resume here →** Phases 1–3 are done (2 and 3 are tested by the developer, awaiting the owner's joint re-test before push). **Next: Phase 4 — AI Provider Management.**
+> **Resume here →** Phases 1–4 are done (1–3 pushed; 4 tested by the developer, awaiting the owner's re-test before push). **Next: Phase 5 — Chat API.**
 
 ## The assignment in one paragraph
 
@@ -26,8 +26,8 @@ Build a production-ready REST backend for the [EchoGPT Chrome extension](https:/
 | 1 | Authentication | ✅ Done |
 | 2 | User Management | ✅ Done |
 | 3 | Subscription Management | ✅ Done |
-| 4 | AI Provider Management | ⏭️ Next |
-| 5 | Chat API | ⬜ |
+| 4 | AI Provider Management | ✅ Done |
+| 5 | Chat API | ⏭️ Next |
 | 6 | Web Search API | ⬜ |
 | 7 | Admin Panel APIs | ⬜ |
 | 8 | Polish & submission (Swagger sweep, Postman, README, final check) | ⬜ |
@@ -198,13 +198,60 @@ Common mistakes: putting the access token in the body (it goes in the header / A
 
 The **429 limit** itself can be triggered by hand from Phase 5 (chat) onwards. Until then it is covered by the smoke test and by a database-simulated check.
 
-## Phase 4 — AI Provider Management (admin)
+---
 
-- [ ] Add / edit / delete / enable / disable providers (OpenAI, Anthropic, Gemini)
-- [ ] API keys encrypted with AES-256-GCM, never returned (only the last 4 characters)
-- [ ] Set the default provider
-- [ ] Health check endpoint (real call to the provider; fails cleanly without a key)
-- [ ] `GET /providers` for users — enabled providers only, no secrets
+## Phase 4 — AI Provider Management ✅
+
+**Endpoints**
+
+| Method | Path | Who | What it does |
+| --- | --- | --- | --- |
+| GET | `/admin/providers` | Admin | List all providers (keys masked) |
+| POST | `/admin/providers` | Admin | Add a provider (OpenAI / Anthropic / Gemini) |
+| GET | `/admin/providers/{id}` | Admin | View one provider |
+| PATCH | `/admin/providers/{id}` | Admin | Edit (send `apiKey` only to rotate it) |
+| DELETE | `/admin/providers/{id}` | Admin | Delete |
+| POST | `/admin/providers/{id}/enable` | Admin | Enable |
+| POST | `/admin/providers/{id}/disable` | Admin | Disable |
+| POST | `/admin/providers/{id}/default` | Admin | Make it the default |
+| POST | `/admin/providers/{id}/health-check` | Admin | Real call to the vendor; stores status, reason and latency |
+| GET | `/providers` | Any user | Enabled providers and their models (no secrets) |
+
+**Checklist**
+
+- [x] Add / edit / delete / enable / disable providers
+- [x] API keys encrypted with AES-256-GCM; only a masked hint (`••••abcd`) is ever returned
+- [x] Default provider selection, with automatic fallback
+- [x] Health check endpoint making a real authenticated call to each vendor
+- [x] One adapter class per vendor behind a shared interface (Phase 5 adds the chat call to them)
+- [x] `ENCRYPTION_KEY` validated at startup (64 hex characters)
+- [x] Smoke tests: `src/providers/providers.spec.ts` (3 tests)
+
+**How it works (in plain words)**
+
+- **Providers are managed by admins, not users.** The platform owns the API keys, and users just pick a provider and model from `GET /providers`. This is how a paid multi-AI product works: users never need their own keys.
+- **Keys are encrypted at rest.** Before a key is saved it is encrypted with AES-256-GCM using `ENCRYPTION_KEY` from the environment. The database holds only `v1:<iv>:<tag>:<ciphertext>`, so a stolen database backup doesn't reveal the keys. GCM also detects tampering: a modified value fails to decrypt instead of producing garbage. The API never returns the key, only its last 4 characters so an admin can tell keys apart.
+- **Adapters.** Each vendor has its own small adapter class (OpenAI, Anthropic, Gemini). They differ in URL and auth header, and all implement the same interface. The rest of the code never checks which vendor it is talking to. Adding a new vendor means one new class and one line in the registry.
+- **Default provider rule.** While any provider is enabled, exactly one enabled provider is the default. The first one added becomes default automatically. If the default is disabled or deleted, the oldest enabled provider takes over. A disabled provider can't be made default.
+- **Health check.** This makes a real, cheap, authenticated call to the vendor (list models) with a 15-second timeout. The result (HEALTHY/UNHEALTHY, the vendor's reason, latency) is stored on the provider. It never crashes: a bad key simply shows `UNHEALTHY — Invalid or unauthorized API key (HTTP 401)`. Rotating the key or changing the URL resets the status to `UNKNOWN`.
+- **Deleting a provider** keeps past chats. Their link to the provider is simply set to empty.
+
+**Test guide** (log in as `admin@echogpt.local` / `Admin12345`)
+
+| # | Do this | Expect |
+| --- | --- | --- |
+| 1 | As a normal user: `GET /admin/providers` | **403** "Insufficient role" |
+| 2 | As admin: `POST /admin/providers` with the example body (OpenAI) | **201** — `isDefault: true` (first one), `apiKeyHint: "••••xxxx"`, no key in the response |
+| 3 | Add Anthropic: `{ "name": "Claude", "type": "ANTHROPIC", "apiKey": "sk-ant-test-1234", "defaultModel": "claude-sonnet-5" }` | **201**, `isDefault: false` |
+| 4 | Same name again | **409** "A provider with this name already exists" |
+| 5 | `POST /admin/providers/{Claude id}/default` | **200** Claude is default; `GET /admin/providers` shows OpenAI is not |
+| 6 | `POST /admin/providers/{OpenAI id}/health-check` | **200** with `health.status: "UNHEALTHY"` and "Invalid or unauthorized API key (HTTP 401)…" — a real reply from OpenAI |
+| 7 | `PATCH /admin/providers/{id}` `{ "apiKey": "sk-new-key-9876" }` | hint becomes `••••9876`, health resets to `UNKNOWN` |
+| 8 | `POST /admin/providers/{Claude id}/disable` | Claude disabled, OpenAI becomes default again automatically |
+| 9 | As a normal user: `GET /providers` | only enabled providers; fields are id, name, type, models, default — no key |
+| 10 | `DELETE /admin/providers/{id}` | **200** "Provider deleted" |
+
+With a **real** API key, step 6 returns `HEALTHY` with the latency.
 
 ## Phase 5 — Chat API
 

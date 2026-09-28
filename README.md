@@ -33,6 +33,7 @@ src/
   auth/                  # register, login, refresh, logout (JWT + sessions)
   users/                 # profile, password change, account deletion, roles
   subscriptions/         # plans, subscription status, upgrade/downgrade, usage limits
+  providers/             # AI provider management (admin), vendor adapters, health checks
 ```
 
 ## Getting started
@@ -56,7 +57,7 @@ cp .env.example .env
 
 Every variable is documented in [.env.example](.env.example). The app validates them at startup and refuses to boot if one is missing or invalid.
 
-Set `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` to two different long random values, e.g. `openssl rand -hex 32`.
+Set `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` to two different long random values, and `ENCRYPTION_KEY` to 64 hex characters, e.g. `openssl rand -hex 32` for each. The example `ENCRYPTION_KEY` is for local development only.
 
 ### 3. Start PostgreSQL
 
@@ -130,6 +131,26 @@ The API container applies migrations and seeds reference data automatically on s
 | `POST /api/v1/subscriptions/me/downgrade` | Bearer | Return to Free immediately |
 
 Daily limits (per UTC day) come from the `plans` table: Free 20 chats / 10 searches, Premium 500 / 200. When a limit is reached, chat and search return **429** with the reset time. Payment processing is out of scope.
+
+## AI providers
+
+Admins manage the AI vendors the platform uses; users pick one of the enabled providers when chatting.
+
+| Endpoint | Auth | Description |
+| --- | --- | --- |
+| `GET /api/v1/providers` | Bearer | Enabled providers and their models (no secrets) |
+| `GET /api/v1/admin/providers` | Admin | List all providers |
+| `POST /api/v1/admin/providers` | Admin | Add an OpenAI / Anthropic / Gemini provider |
+| `GET /api/v1/admin/providers/:id` | Admin | View one provider |
+| `PATCH /api/v1/admin/providers/:id` | Admin | Edit, or rotate the API key |
+| `DELETE /api/v1/admin/providers/:id` | Admin | Delete |
+| `POST /api/v1/admin/providers/:id/enable` / `disable` | Admin | Enable / disable |
+| `POST /api/v1/admin/providers/:id/default` | Admin | Make it the default provider |
+| `POST /api/v1/admin/providers/:id/health-check` | Admin | Real authenticated call to the vendor; stores status and latency |
+
+- API keys are encrypted with **AES-256-GCM** (`ENCRYPTION_KEY`) before they are stored and are never returned, only `••••` plus the last 4 characters.
+- While any provider is enabled, exactly one enabled provider is the default; disabling or deleting it hands the role to another.
+- Each vendor has an adapter implementing one interface (`src/providers/adapters`), so adding a vendor is one new class.
 
 ## Useful scripts
 
