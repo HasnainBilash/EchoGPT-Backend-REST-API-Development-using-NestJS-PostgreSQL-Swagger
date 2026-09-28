@@ -311,6 +311,220 @@
         ]
       }
     },
+    "/api/v1/auth/verify-email": {
+      "post": {
+        "description": "Confirms the address with the token from the verification email. Tokens are single-use and expire after 24 hours.",
+        "operationId": "AuthController_verifyEmail_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed or malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                },
+                "example": {
+                  "statusCode": 400,
+                  "error": "Bad Request",
+                  "message": "Validation failed or malformed request",
+                  "path": "/api/v1/...",
+                  "timestamp": "2026-09-28T10:00:00.000Z"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or plan usage limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                },
+                "example": {
+                  "statusCode": 429,
+                  "error": "Too Many Requests",
+                  "message": "Rate limit or plan usage limit exceeded",
+                  "path": "/api/v1/...",
+                  "timestamp": "2026-09-28T10:00:00.000Z"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Verify an email address",
+        "tags": [
+          "Auth"
+        ]
+      },
+      "get": {
+        "description": "Same as POST, for the link in the email: `?token=...`.",
+        "operationId": "AuthController_verifyEmailLink_v1",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "query",
+            "description": "The `token` query parameter of the link in the verification email.",
+            "schema": {
+              "minLength": 20,
+              "maxLength": 200,
+              "example": "paste-the-token-from-the-verification-link",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed or malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                },
+                "example": {
+                  "statusCode": 400,
+                  "error": "Bad Request",
+                  "message": "Validation failed or malformed request",
+                  "path": "/api/v1/...",
+                  "timestamp": "2026-09-28T10:00:00.000Z"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or plan usage limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                },
+                "example": {
+                  "statusCode": 429,
+                  "error": "Too Many Requests",
+                  "message": "Rate limit or plan usage limit exceeded",
+                  "path": "/api/v1/...",
+                  "timestamp": "2026-09-28T10:00:00.000Z"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Verify an email address (link from the email)",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/resend-verification": {
+      "post": {
+        "description": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nSends a new link and invalidates any previous unused one.",
+        "operationId": "AuthController_resendVerification_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                },
+                "example": {
+                  "statusCode": 401,
+                  "error": "Unauthorized",
+                  "message": "Missing, invalid or expired access token",
+                  "path": "/api/v1/...",
+                  "timestamp": "2026-09-28T10:00:00.000Z"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Resource already exists or state conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                },
+                "example": {
+                  "statusCode": 409,
+                  "error": "Conflict",
+                  "message": "Resource already exists or state conflict",
+                  "path": "/api/v1/...",
+                  "timestamp": "2026-09-28T10:00:00.000Z"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or plan usage limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                },
+                "example": {
+                  "statusCode": 429,
+                  "error": "Too Many Requests",
+                  "message": "Rate limit or plan usage limit exceeded",
+                  "path": "/api/v1/...",
+                  "timestamp": "2026-09-28T10:00:00.000Z"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Resend the verification email",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
     "/api/v1/auth/logout": {
       "post": {
         "description": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nRevokes the session that owns the given refresh token.",
@@ -2160,6 +2374,144 @@
           }
         ],
         "summary": "Send a prompt and get the AI reply",
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/api/v1/chat/messages/stream": {
+      "post": {
+        "description": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nSame input and rules as `POST /chat/messages`, but the reply arrives as it is generated, as **Server-Sent Events** (`text/event-stream`):\n\n- `start` — `{ conversationId, provider, model }` (`conversationId` is null for a new chat)\n- `delta` — `{ text }`, repeated; concatenate them for the full reply\n- `done` — the same body as `POST /chat/messages` (saved conversation, messages, usage)\n- `error` — `{ statusCode, message }`; nothing was saved\n\nAvailable on plans with streaming enabled (Premium); Free gets 403. Errors found before streaming starts (403, 404, 429, …) are normal JSON responses. If the client disconnects, the AI call is cancelled and nothing is saved or counted. Browsers: read it with `fetch()` and a stream reader (EventSource only supports GET).",
+        "operationId": "ChatController_stream_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "An event stream.",
+            "content": {
+              "text/event-stream": {
+                "example": "event: start\ndata: {\"conversationId\":null,\"provider\":{\"id\":\"…\",\"name\":\"OpenAI\"},\"model\":\"gpt-4o-mini\"}\n\nevent: delta\ndata: {\"text\":\"A REST API\"}\n\nevent: delta\ndata: {\"text\":\" is …\"}\n\nevent: done\ndata: {\"conversation\":{…},\"userMessage\":{…},\"reply\":{…},\"usage\":{…}}\n\n"
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed or malformed request",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                },
+                "example": {
+                  "statusCode": 400,
+                  "error": "Bad Request",
+                  "message": "Validation failed or malformed request",
+                  "path": "/api/v1/...",
+                  "timestamp": "2026-09-28T10:00:00.000Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired access token",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                },
+                "example": {
+                  "statusCode": 401,
+                  "error": "Unauthorized",
+                  "message": "Missing, invalid or expired access token",
+                  "path": "/api/v1/...",
+                  "timestamp": "2026-09-28T10:00:00.000Z"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed to perform this action",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                },
+                "example": {
+                  "statusCode": 403,
+                  "error": "Forbidden",
+                  "message": "Not allowed to perform this action",
+                  "path": "/api/v1/...",
+                  "timestamp": "2026-09-28T10:00:00.000Z"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                },
+                "example": {
+                  "statusCode": 404,
+                  "error": "Not Found",
+                  "message": "Resource not found",
+                  "path": "/api/v1/...",
+                  "timestamp": "2026-09-28T10:00:00.000Z"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or plan usage limit exceeded",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                },
+                "example": {
+                  "statusCode": 429,
+                  "error": "Too Many Requests",
+                  "message": "Rate limit or plan usage limit exceeded",
+                  "path": "/api/v1/...",
+                  "timestamp": "2026-09-28T10:00:00.000Z"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service or dependency unavailable",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                },
+                "example": {
+                  "statusCode": 503,
+                  "error": "Service Unavailable",
+                  "message": "Service or dependency unavailable",
+                  "path": "/api/v1/...",
+                  "timestamp": "2026-09-28T10:00:00.000Z"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Send a prompt and stream the AI reply (Premium)",
         "tags": [
           "Chat"
         ]
@@ -4887,12 +5239,18 @@
             ],
             "type": "string",
             "example": "USER"
+          },
+          "emailVerified": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether the email address has been verified."
           }
         },
         "required": [
           "id",
           "email",
-          "role"
+          "role",
+          "emailVerified"
         ]
       },
       "AuthResponseDto": {
@@ -4960,6 +5318,21 @@
           "refreshToken"
         ]
       },
+      "VerifyEmailDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 200,
+            "example": "paste-the-token-from-the-verification-link",
+            "description": "The `token` query parameter of the link in the verification email."
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
       "MessageResponseDto": {
         "type": "object",
         "properties": {
@@ -5005,6 +5378,13 @@
             "type": "boolean",
             "example": true
           },
+          "emailVerifiedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true,
+            "example": "2026-09-28T10:00:00.000Z",
+            "description": "When the email address was verified; null = not verified yet."
+          },
           "lastLoginAt": {
             "format": "date-time",
             "type": "string",
@@ -5029,6 +5409,7 @@
           "avatarUrl",
           "role",
           "isActive",
+          "emailVerifiedAt",
           "lastLoginAt",
           "createdAt",
           "updatedAt"
@@ -5983,6 +6364,11 @@
             "type": "number",
             "example": 5
           },
+          "cached": {
+            "type": "boolean",
+            "example": false,
+            "description": "true when the results came from the search cache instead of the engine."
+          },
           "hasSummary": {
             "type": "boolean",
             "example": true,
@@ -6039,6 +6425,7 @@
           "query",
           "engine",
           "resultCount",
+          "cached",
           "hasSummary",
           "latencyMs",
           "createdAt",
@@ -6068,6 +6455,11 @@
             "type": "number",
             "example": 5
           },
+          "cached": {
+            "type": "boolean",
+            "example": false,
+            "description": "true when the results came from the search cache instead of the engine."
+          },
           "hasSummary": {
             "type": "boolean",
             "example": true,
@@ -6089,6 +6481,7 @@
           "query",
           "engine",
           "resultCount",
+          "cached",
           "hasSummary",
           "latencyMs",
           "createdAt"
@@ -6130,6 +6523,11 @@
           "resultCount": {
             "type": "number",
             "example": 5
+          },
+          "cached": {
+            "type": "boolean",
+            "example": false,
+            "description": "true when the results came from the search cache instead of the engine."
           },
           "hasSummary": {
             "type": "boolean",
@@ -6173,6 +6571,7 @@
           "query",
           "engine",
           "resultCount",
+          "cached",
           "hasSummary",
           "latencyMs",
           "createdAt",
@@ -6959,6 +7358,13 @@
             "type": "boolean",
             "example": true
           },
+          "emailVerifiedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true,
+            "example": "2026-09-28T10:00:00.000Z",
+            "description": "When the email address was verified; null = not verified yet."
+          },
           "lastLoginAt": {
             "format": "date-time",
             "type": "string",
@@ -7002,6 +7408,7 @@
           "avatarUrl",
           "role",
           "isActive",
+          "emailVerifiedAt",
           "lastLoginAt",
           "createdAt",
           "updatedAt",
@@ -7092,6 +7499,13 @@
             "type": "boolean",
             "example": true
           },
+          "emailVerifiedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true,
+            "example": "2026-09-28T10:00:00.000Z",
+            "description": "When the email address was verified; null = not verified yet."
+          },
           "lastLoginAt": {
             "format": "date-time",
             "type": "string",
@@ -7144,6 +7558,7 @@
           "avatarUrl",
           "role",
           "isActive",
+          "emailVerifiedAt",
           "lastLoginAt",
           "createdAt",
           "updatedAt",

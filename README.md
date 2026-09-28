@@ -6,12 +6,13 @@ Backend for the [EchoGPT – Multi AI Chat](https://chromewebstore.google.com/de
 
 ## Highlights
 
-- **50 documented endpoints** across auth, users, subscriptions, AI providers, chat, web search and an admin panel, all explorable in Swagger UI.
+- **54 documented endpoints** across auth, users, subscriptions, AI providers, chat, web search and an admin panel, all explorable in Swagger UI.
 - **Real multi-provider AI**: OpenAI, Anthropic (Claude) and Google Gemini behind one adapter interface, with API keys encrypted at rest (AES-256-GCM).
 - **Secure by default**: every route requires a JWT unless marked public, role checks for admin routes, rotating refresh tokens with reuse detection, bcrypt passwords, input whitelisting, rate limiting and security headers.
 - **Plan-based usage limits**: daily chat and search quotas read from the database, with a remaining-requests API.
 - **Observability**: every request is logged and powers the admin analytics, request logs and system health.
-- **Demo without API keys**: a bundled OpenAI-compatible mock server (`npm run mock:ai`).
+- **All bonus features**: email verification, streaming AI responses (Server-Sent Events) and search result caching.
+- **Demo without API keys**: a bundled OpenAI-compatible mock server (`npm run mock:ai`), including streaming.
 
 ## Assignment checklist
 
@@ -28,7 +29,9 @@ Backend for the [EchoGPT – Multi AI Chat](https://chromewebstore.google.com/de
 | Normalized PostgreSQL schema + migrations | [prisma/schema.prisma](prisma/schema.prisma), [prisma/migrations](prisma/migrations) |
 | README, `.env.example`, Docker | this file, [.env.example](.env.example), [Dockerfile](Dockerfile), [docker-compose.yml](docker-compose.yml) |
 | Postman collection (optional) | [docs/EchoGPT.postman_collection.json](docs/EchoGPT.postman_collection.json) |
-| Bonus: email verification, streaming, search caching | Not implemented (tables `email_verification_tokens` and `search_cache` are ready) |
+| Bonus: email verification | ✅ [Authentication](#authentication) — `src/auth/email-verification.service.ts`, `src/mail` |
+| Bonus: streaming response | ✅ [Chat](#chat) — `POST /chat/messages/stream` |
+| Bonus: search result caching | ✅ [Web search](#web-search) — `src/search/search-cache.service.ts` |
 
 ## Tech stack
 
@@ -187,13 +190,15 @@ Request
 - **No payment provider**: upgrading starts a 30-day Premium period directly. In production a payment webhook would call the same logic.
 - **DuckDuckGo Instant Answer** is free and keyless but is not a full web index. Topics ("NestJS") return results, while question-style queries often return none (reported as 0 results, not an error).
 - **Logout** revokes the session (refresh token) immediately. An already-issued access token stays valid until it expires (at most 15 minutes) — the usual trade-off of stateless JWTs. Deactivating or deleting an account blocks it at once.
-- **Bonus features skipped** to keep the scope focused: email verification, streaming responses and search result caching. Their tables already exist in the schema.
+- **Email verification is not enforced**: unverified users can still use the API (the extension stays usable right after sign-up); the status is exposed as `emailVerified` / `emailVerifiedAt` so a client or a future guard can require it.
+- **Streaming is Premium-only**, driven by the existing `plans.allow_streaming` flag.
+- **Only engine results are cached**, not AI summaries — summaries depend on the chosen provider and are cheap to regenerate.
 - Failed AI calls return **502** and are neither saved nor counted against the user's quota.
 
 ## Testing
 
 ```bash
-npm test        # 28 smoke tests across auth, users, subscriptions, providers, chat, search and admin
+npm test        # 39 smoke tests across auth, users, subscriptions, providers, chat, search and admin
 npm run lint    # ESLint + Prettier
 ```
 
@@ -208,6 +213,9 @@ The unit tests run without a database (Prisma and HTTP are replaced with in-memo
 | `POST /api/v1/auth/refresh` | Public | Rotate the refresh token and get a new pair |
 | `POST /api/v1/auth/logout` | Bearer | Revoke the session of the given refresh token |
 | `POST /api/v1/auth/logout-all` | Bearer | Revoke all sessions of the user |
+| `POST /api/v1/auth/verify-email` | Public | Verify the email address with the token from the email |
+| `GET /api/v1/auth/verify-email?token=` | Public | Same, for the link in the email |
+| `POST /api/v1/auth/resend-verification` | Bearer | Send a new verification link |
 
 - Send the access token as a header: `Authorization: Bearer <accessToken>` (15 min lifetime).
 - The refresh token (30 days) is only sent in the body of `/auth/refresh` and `/auth/logout`.
@@ -216,6 +224,13 @@ The unit tests run without a database (Prisma and HTTP are replaced with in-memo
 - In Swagger UI, logging in or registering applies the access token to **Authorize** automatically.
 
 `npm run db:seed` also creates a first admin from `ADMIN_EMAIL` / `ADMIN_PASSWORD` when they are set.
+
+### Email verification
+
+- Registering sends an email with a verification link (`EMAIL_VERIFICATION_URL?token=…`, by default this API's `GET /auth/verify-email`).
+- Tokens are 32 random bytes, stored only as a SHA-256 hash, **single-use**, and expire after **24 hours**. Resending replaces any older unused link.
+- Email is sent over SMTP when `SMTP_HOST` is set. **Without SMTP (development) the email, including the link, is written to the server log**, so the flow can be tried end to end.
+- A mail failure never blocks registration. `emailVerified` (login/register) and `emailVerifiedAt` (profile, admin views) show the status.
 
 ## Users
 
@@ -271,6 +286,22 @@ Admins manage the AI vendors the platform uses; users pick one of the enabled pr
 - The last 20 messages are sent as context. Provider: requested → the conversation's → default. Model: requested (must be offered) → the conversation's → provider default.
 - Checks the daily chat limit first (**429**). If the AI provider fails the response is **502** and nothing is saved or counted.
 
+### Streaming responses (Premium)
+
+`POST /api/v1/chat/messages/stream` takes the same body but returns **Server-Sent Events** while the AI writes:
+
+```text
+event: start   data: {"conversationId":null,"provider":{…},"model":"gpt-4o-mini"}
+event: delta   data: {"text":"A REST API"}      ← repeated; concatenate them
+event: done    data: { same body as POST /chat/messages }
+event: error   data: {"statusCode":502,"message":"…"}   ← instead of done; nothing saved
+```
+
+- Requires a plan with streaming (`plans.allow_streaming`, Premium by default); Free gets **403**.
+- Checks (limits, ownership, provider) run before the stream starts, so they stay normal JSON errors.
+- The exchange is saved only when the stream completes. A provider failure or a client disconnect saves and counts nothing (the AI call is cancelled).
+- Try it: `curl -N -X POST http://localhost:3000/api/v1/chat/messages/stream -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{\"message\":\"hi\"}"` (Swagger shows the full stream once it ends).
+
 ## Web search
 
 | Endpoint | Auth | Description |
@@ -286,6 +317,7 @@ Admins manage the AI vendors the platform uses; users pick one of the enabled pr
 - Results come from the free, keyless **DuckDuckGo Instant Answer** API (topic summaries and related links; question-style queries often return nothing).
 - The AI summary uses any chat provider. If it fails, results are still returned with `summaryError`.
 - Counts toward the daily search limit (**429**); an unreachable engine returns **502** and nothing is counted.
+- **Result caching**: engine results are cached in `search_cache` for `SEARCH_CACHE_TTL_SECONDS` (default 1 hour; 0 disables), keyed by a hash of engine + normalized query and shared by all users. A cached search returns `cached: true` and skips the external call. AI summaries are still generated per request.
 
 ### Trying chat without an API key
 
@@ -338,14 +370,14 @@ All `/admin/*` endpoints require the `ADMIN` role (log in with the seeded `ADMIN
 | `users` | Accounts (email, password hash, profile, role, status) |
 | `roles` | `USER` / `ADMIN` |
 | `sessions` | One row per logged-in device; stores the hashed refresh token |
-| `email_verification_tokens` | Hashed single-use email verification tokens (reserved for the bonus feature) |
+| `email_verification_tokens` | Hashed single-use email verification tokens (24 h) |
 | `plans` | `FREE` / `PREMIUM` with daily limits |
 | `subscriptions` | Each user's current plan |
 | `usage_records` | One row per chat/search request; used for usage limits |
 | `ai_providers` | OpenAI / Anthropic / Gemini configs with encrypted API keys |
 | `conversations`, `messages` | Chat history |
 | `web_searches` | Search history (with result snapshot) |
-| `search_cache` | Cached search results (reserved for the bonus feature) |
+| `search_cache` | Shared cache of search-engine results (TTL) |
 | `api_usage_logs` | Log of every API request (admin analytics & request logs) |
 
 ## Error format

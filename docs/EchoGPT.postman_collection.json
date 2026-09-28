@@ -5,7 +5,7 @@
       "description": "Liveness / readiness probe.",
       "item": [
         {
-          "id": "e6587f93-e491-4676-9968-69bac8287c22",
+          "id": "00847f8e-1853-4e53-af89-e0994e9409c2",
           "name": "Liveness / readiness probe",
           "request": {
             "name": "Liveness / readiness probe",
@@ -48,7 +48,7 @@
       "description": "Register, log in, rotate tokens, log out.",
       "item": [
         {
-          "id": "72472753-81af-435a-9aaa-c4ad8b3e31fc",
+          "id": "63ec69a3-ac75-43a7-bf86-6af19638563d",
           "name": "Create an account",
           "request": {
             "name": "Create an account",
@@ -77,7 +77,7 @@
                   "type": "text/plain"
                 },
                 "key": "user-agent",
-                "value": "laboris Excepteur ul"
+                "value": "aliqua ipsu"
               },
               {
                 "key": "Content-Type",
@@ -124,7 +124,7 @@
           }
         },
         {
-          "id": "471c4720-7031-43f1-923e-24b5a4b4f534",
+          "id": "703ff223-4f8c-4997-850d-5d46c34e609c",
           "name": "Log in with email and password",
           "request": {
             "name": "Log in with email and password",
@@ -153,7 +153,7 @@
                   "type": "text/plain"
                 },
                 "key": "user-agent",
-                "value": "laboris Excepteur ul"
+                "value": "aliqua ipsu"
               },
               {
                 "key": "Content-Type",
@@ -200,7 +200,7 @@
           }
         },
         {
-          "id": "3db186d0-d0fd-457c-af68-8e30516945aa",
+          "id": "8393aeed-649e-4599-bc8e-b12409af7c36",
           "name": "Get a new token pair",
           "request": {
             "name": "Get a new token pair",
@@ -267,7 +267,141 @@
           }
         },
         {
-          "id": "cbfc08bb-ff5c-4788-81b4-f1d1490741c0",
+          "id": "8631f754-9a1e-4a2f-9247-977962cf4e53",
+          "name": "Verify an email address",
+          "request": {
+            "name": "Verify an email address",
+            "description": {
+              "content": "Confirms the address with the token from the verification email. Tokens are single-use and expire after 24 hours.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-email"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"paste-the-token-from-the-verification-link\"\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "e489b839-3570-410f-be79-611911f46d8c",
+          "name": "Verify an email address (link from the email)",
+          "request": {
+            "name": "Verify an email address (link from the email)",
+            "description": {
+              "content": "Same as POST, for the link in the email: `?token=...`.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-email"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "(Required) The `token` query parameter of the link in the verification email.",
+                    "type": "text/plain"
+                  },
+                  "key": "token",
+                  "value": "paste-the-token-from-the-verification-link"
+                }
+              ],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {},
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "d2ab9619-3c71-4a2f-a82f-aec26dae13e1",
+          "name": "Resend the verification email",
+          "request": {
+            "name": "Resend the verification email",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nSends a new link and invalidates any previous unused one.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "resend-verification"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "b15b06a2-9271-48e9-bba5-032148c26385",
           "name": "Log out of the current device",
           "request": {
             "name": "Log out of the current device",
@@ -315,7 +449,7 @@
           }
         },
         {
-          "id": "be5319ca-2147-4771-998a-ce7402733fdb",
+          "id": "20791553-ca0f-425a-800c-0e3e09c21bb0",
           "name": "Log out of all devices",
           "request": {
             "name": "Log out of all devices",
@@ -356,7 +490,7 @@
       "description": "My profile, password and account.",
       "item": [
         {
-          "id": "1fb47115-f02e-4fa9-a3e5-24b593628022",
+          "id": "c05cad45-b559-4aba-9ad3-573815cdaf17",
           "name": "Get my profile",
           "request": {
             "name": "Get my profile",
@@ -391,7 +525,7 @@
           }
         },
         {
-          "id": "c2cefac5-9000-4bfe-ad10-291cbcc1f0a7",
+          "id": "3e7db7d7-1e74-4907-a191-2e56de139111",
           "name": "Update my profile",
           "request": {
             "name": "Update my profile",
@@ -439,7 +573,7 @@
           }
         },
         {
-          "id": "fd86547e-3d12-4c63-ada8-b1f17afd9da6",
+          "id": "83a7c3b4-c243-4b14-bedd-230a26d5052a",
           "name": "Change my password",
           "request": {
             "name": "Change my password",
@@ -469,7 +603,7 @@
                   "type": "text/plain"
                 },
                 "key": "user-agent",
-                "value": "laboris Excepteur ul"
+                "value": "aliqua ipsu"
               },
               {
                 "key": "Content-Type",
@@ -513,7 +647,7 @@
           }
         },
         {
-          "id": "88971be7-5275-4ae9-b129-11679c6bd72a",
+          "id": "812a479d-8660-4d8d-ab6e-62ecadb7720b",
           "name": "Delete my account",
           "request": {
             "name": "Delete my account",
@@ -567,7 +701,7 @@
       "description": "Plans, my subscription, upgrade/downgrade and remaining requests.",
       "item": [
         {
-          "id": "30f61a7a-f4af-478f-ab08-9de1c67863eb",
+          "id": "02677f80-ad97-4b2f-8725-b153e20744f4",
           "name": "List available plans",
           "request": {
             "name": "List available plans",
@@ -604,7 +738,7 @@
           }
         },
         {
-          "id": "428de2e7-08cc-48fe-84e3-a5af54222763",
+          "id": "e25afb0e-666c-4092-8476-74fa1d9f95d8",
           "name": "Get my subscription status",
           "request": {
             "name": "Get my subscription status",
@@ -639,7 +773,7 @@
           }
         },
         {
-          "id": "2cc9db30-3876-41a3-af9e-990088d59fc6",
+          "id": "33a716c5-332c-4f54-96c8-59696c5b203c",
           "name": "Get my usage and remaining requests",
           "request": {
             "name": "Get my usage and remaining requests",
@@ -675,7 +809,7 @@
           }
         },
         {
-          "id": "1e996beb-2a5a-441b-bcb5-83b292e00310",
+          "id": "684eea62-5ada-47bb-bf65-3a741a9fc13c",
           "name": "Upgrade to Premium",
           "request": {
             "name": "Upgrade to Premium",
@@ -711,7 +845,7 @@
           }
         },
         {
-          "id": "5d70b6cc-8ec6-48f5-b443-69b3ff9270ba",
+          "id": "4f3555ba-bacc-4c61-856b-937823c0dcd3",
           "name": "Downgrade to Free",
           "request": {
             "name": "Downgrade to Free",
@@ -753,7 +887,7 @@
       "description": "AI providers available to chat with.",
       "item": [
         {
-          "id": "9689f26b-9ad2-404d-ac67-d9665dfdea98",
+          "id": "4e00e107-343a-405b-89a0-a2adafbe3acb",
           "name": "List providers I can chat with",
           "request": {
             "name": "List providers I can chat with",
@@ -806,7 +940,7 @@
       "description": "Send prompts and manage conversation history.",
       "item": [
         {
-          "id": "b6ccfaef-c911-430a-8a13-d9968121151c",
+          "id": "6f075a87-7aac-48a5-ad5b-5e2405485b6b",
           "name": "Send a prompt and get the AI reply",
           "request": {
             "name": "Send a prompt and get the AI reply",
@@ -867,7 +1001,56 @@
           }
         },
         {
-          "id": "acffa842-ad0d-4cc4-b62c-f193ed56d557",
+          "id": "3f27a7f5-8f79-4c29-83ed-b6eaa3196c57",
+          "name": "Send a prompt and stream the AI reply (Premium)",
+          "request": {
+            "name": "Send a prompt and stream the AI reply (Premium)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nSame input and rules as `POST /chat/messages`, but the reply arrives as it is generated, as **Server-Sent Events** (`text/event-stream`):\n\n- `start` — `{ conversationId, provider, model }` (`conversationId` is null for a new chat)\n- `delta` — `{ text }`, repeated; concatenate them for the full reply\n- `done` — the same body as `POST /chat/messages` (saved conversation, messages, usage)\n- `error` — `{ statusCode, message }`; nothing was saved\n\nAvailable on plans with streaming enabled (Premium); Free gets 403. Errors found before streaming starts (403, 404, 429, …) are normal JSON responses. If the client disconnects, the AI call is cancelled and nothing is saved or counted. Browsers: read it with `fetch()` and a stream reader (EventSource only supports GET).",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "chat",
+                "messages",
+                "stream"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "text/event-stream"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Explain what a REST API is in two sentences.\"\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "7034da93-f308-45ff-a695-14c343dddd0c",
           "name": "List my conversations",
           "request": {
             "name": "List my conversations",
@@ -921,7 +1104,7 @@
           }
         },
         {
-          "id": "fcdcc0c8-e48c-4338-9c15-dd12bdb96091",
+          "id": "de43d95a-ae39-4b46-8097-b768c7b1970c",
           "name": "Get a conversation with its messages",
           "request": {
             "name": "Get a conversation with its messages",
@@ -968,7 +1151,7 @@
           }
         },
         {
-          "id": "23718f14-ecdb-4978-95f5-e60e77a507a4",
+          "id": "fa9a60cb-39cd-4b8d-8040-a2211277ea49",
           "name": "Rename a conversation",
           "request": {
             "name": "Rename a conversation",
@@ -1028,7 +1211,7 @@
           }
         },
         {
-          "id": "cfdcf59f-3f52-450b-8441-a36ec1571e3f",
+          "id": "36580838-d7b0-4c16-8814-cb463d2b319a",
           "name": "Delete a conversation and its messages",
           "request": {
             "name": "Delete a conversation and its messages",
@@ -1081,7 +1264,7 @@
       "description": "AI-assisted web search, history, recent searches and suggestions.",
       "item": [
         {
-          "id": "9b848522-1d9a-4d4f-85f6-398ed9906ec5",
+          "id": "0be8129a-4c54-4a0b-9f9d-cb9b8877d925",
           "name": "Search the web (AI-assisted)",
           "request": {
             "name": "Search the web (AI-assisted)",
@@ -1141,7 +1324,7 @@
           }
         },
         {
-          "id": "c5932f94-26de-4468-9fd3-f12e88d86d72",
+          "id": "9c5a295f-c3f7-4574-b695-c04a2e69eaf4",
           "name": "My search history",
           "request": {
             "name": "My search history",
@@ -1195,7 +1378,7 @@
           }
         },
         {
-          "id": "73b278e1-f5a5-4d2b-a518-733dfa727130",
+          "id": "59799bc1-0cab-40dd-881d-9a26fec06058",
           "name": "Get one past search",
           "request": {
             "name": "Get one past search",
@@ -1242,7 +1425,7 @@
           }
         },
         {
-          "id": "051426a4-c818-4adc-9069-bab44e5dd5bc",
+          "id": "7729d9cd-65f5-4559-b35c-a79811ffee26",
           "name": "My recent searches",
           "request": {
             "name": "My recent searches",
@@ -1287,7 +1470,7 @@
           }
         },
         {
-          "id": "a9533330-4eb1-4b34-9030-96ea17a32957",
+          "id": "2c4ecc62-584f-46b4-a0b9-46b758453273",
           "name": "Search suggestions while typing",
           "request": {
             "name": "Search suggestions while typing",
@@ -1332,7 +1515,7 @@
           }
         },
         {
-          "id": "ded0441b-4028-4113-a8a5-835342d5c6f3",
+          "id": "c06f4f7b-9466-424d-8d08-ef127aae998c",
           "name": "Delete one search from history",
           "request": {
             "name": "Delete one search from history",
@@ -1379,7 +1562,7 @@
           }
         },
         {
-          "id": "765842e1-55f1-4513-9c7f-521e4baf85b1",
+          "id": "4573d316-3baa-44e0-b751-72b80c9c0cd6",
           "name": "Clear my whole search history",
           "request": {
             "name": "Clear my whole search history",
@@ -1420,7 +1603,7 @@
       "description": "Admin only: statistics, analytics, request logs, system health.",
       "item": [
         {
-          "id": "4630cf64-4db2-495d-aef6-5e2cfa678226",
+          "id": "07099b77-79d9-465d-9877-8b3c0a0cd717",
           "name": "Dashboard statistics (admin)",
           "request": {
             "name": "Dashboard statistics (admin)",
@@ -1455,7 +1638,7 @@
           }
         },
         {
-          "id": "dfdebc7a-c020-4092-967b-6cf4a1c0780b",
+          "id": "9e6d07b6-c958-439b-920b-2571240f6b20",
           "name": "API usage analytics (admin)",
           "request": {
             "name": "API usage analytics (admin)",
@@ -1501,7 +1684,7 @@
           }
         },
         {
-          "id": "97ba7da2-46d7-4b75-ab15-758a6533d538",
+          "id": "efda4e1e-d4e3-4795-9b5b-2ae45f4649e1",
           "name": "HTTP request analytics (admin)",
           "request": {
             "name": "HTTP request analytics (admin)",
@@ -1547,7 +1730,7 @@
           }
         },
         {
-          "id": "dc333a7a-33e2-4483-8e33-de0a82a31286",
+          "id": "0e77b8c6-54c3-432e-891b-2899d6b1c15a",
           "name": "Request logs (admin)",
           "request": {
             "name": "Request logs (admin)",
@@ -1591,7 +1774,7 @@
                     "type": "text/plain"
                   },
                   "key": "userId",
-                  "value": "urn:uuid:914fbf66-bf8b-8b83-b301-cb40988015de"
+                  "value": "urn:uuid:6fa5e651-d89e-e511-4065-b392835fcce4"
                 },
                 {
                   "disabled": true,
@@ -1600,7 +1783,7 @@
                     "type": "text/plain"
                   },
                   "key": "method",
-                  "value": "DELETE"
+                  "value": "GET"
                 },
                 {
                   "disabled": true,
@@ -1664,7 +1847,7 @@
           }
         },
         {
-          "id": "169c29b4-8172-4242-9187-1493167b2dcc",
+          "id": "f9bdb045-b12c-49a7-b50c-4f9c4afce1ff",
           "name": "System health (admin)",
           "request": {
             "name": "System health (admin)",
@@ -1716,7 +1899,7 @@
       "description": "Admin only: user management.",
       "item": [
         {
-          "id": "6994b0db-e498-412f-a3f9-da8a8212c1b0",
+          "id": "b02aa39c-e791-45c4-aa8f-86f580aca4b5",
           "name": "List users (admin)",
           "request": {
             "name": "List users (admin)",
@@ -1778,7 +1961,7 @@
                     "type": "text/plain"
                   },
                   "key": "isActive",
-                  "value": "false"
+                  "value": "true"
                 }
               ],
               "variable": []
@@ -1797,7 +1980,7 @@
           }
         },
         {
-          "id": "c4f79cb8-c68f-48a1-849d-77ef2bf485ff",
+          "id": "6c191880-01a1-4b30-953b-0d452721d646",
           "name": "Get a user with plan and activity stats (admin)",
           "request": {
             "name": "Get a user with plan and activity stats (admin)",
@@ -1844,7 +2027,7 @@
           }
         },
         {
-          "id": "b48c6a84-648f-4dcb-b76a-9a2227f57af9",
+          "id": "8a1717b9-bd97-4b99-a97f-4d0935f9d3ba",
           "name": "Change a user role (admin)",
           "request": {
             "name": "Change a user role (admin)",
@@ -1905,7 +2088,7 @@
           }
         },
         {
-          "id": "076a5a17-a1c4-432e-a8f8-3ab1f1ebbc4b",
+          "id": "d41879c9-05fa-4eeb-a467-931c6b6272dc",
           "name": "Activate or deactivate a user (admin)",
           "request": {
             "name": "Activate or deactivate a user (admin)",
@@ -1966,7 +2149,7 @@
           }
         },
         {
-          "id": "6c1e00e8-b8a8-42ac-917f-8ba0eee2a58f",
+          "id": "cdb7606a-2b5b-44e7-b1a0-b60695ee748d",
           "name": "Delete a user (admin)",
           "request": {
             "name": "Delete a user (admin)",
@@ -2019,7 +2202,7 @@
       "description": "Admin only: subscriptions and plans.",
       "item": [
         {
-          "id": "93abc160-11b4-4b89-b07b-f5c5481614f0",
+          "id": "736bb747-a144-4a68-9b9d-9809f6447203",
           "name": "List subscriptions (admin)",
           "request": {
             "name": "List subscriptions (admin)",
@@ -2091,7 +2274,7 @@
           }
         },
         {
-          "id": "c3a905cb-523f-4cfc-9db8-ccea9531ca13",
+          "id": "7cf17b7c-ae1a-4194-a311-1f3f4277e2f7",
           "name": "Set a user's plan (admin)",
           "request": {
             "name": "Set a user's plan (admin)",
@@ -2151,7 +2334,7 @@
           }
         },
         {
-          "id": "fd421329-042a-41c9-a3b5-424a41255a12",
+          "id": "7864dcad-7f14-4980-9841-245c18da6b00",
           "name": "Edit a plan: price and limits (admin)",
           "request": {
             "name": "Edit a plan: price and limits (admin)",
@@ -2217,7 +2400,7 @@
       "description": "Admin only: add, configure and health-check AI providers.",
       "item": [
         {
-          "id": "1c379b00-551f-4b1c-93ea-f812422e1c11",
+          "id": "fe44fbe6-5c73-4ee4-9b58-3aeb868e68d3",
           "name": "List all providers (admin)",
           "request": {
             "name": "List all providers (admin)",
@@ -2252,7 +2435,7 @@
           }
         },
         {
-          "id": "92807560-3a5b-4510-892d-1d982403f0e0",
+          "id": "b2485328-4ffc-45ed-89f1-2d94468f76a6",
           "name": "Add a provider (admin)",
           "request": {
             "name": "Add a provider (admin)",
@@ -2313,7 +2496,7 @@
           }
         },
         {
-          "id": "66c65faa-a890-46e2-9e81-ede3420ff861",
+          "id": "9f0c9714-93ac-4d3e-bc65-7b430ca5c06f",
           "name": "Get one provider (admin)",
           "request": {
             "name": "Get one provider (admin)",
@@ -2360,7 +2543,7 @@
           }
         },
         {
-          "id": "eea29e38-a93b-4080-b75d-2d474d105659",
+          "id": "9f9c6a8a-f805-460a-97e4-a07906e7155b",
           "name": "Edit a provider (admin)",
           "request": {
             "name": "Edit a provider (admin)",
@@ -2420,7 +2603,7 @@
           }
         },
         {
-          "id": "157a6839-9c40-4b23-b3e3-31bf6676d5df",
+          "id": "72924ea0-d8bf-42d0-a88f-8666b57fb235",
           "name": "Enable a provider (admin)",
           "request": {
             "name": "Enable a provider (admin)",
@@ -2468,7 +2651,7 @@
           }
         },
         {
-          "id": "fd50d38e-1637-4560-812d-4c69b54a164f",
+          "id": "dedff32d-244b-49ce-82de-ba09997938ff",
           "name": "Disable a provider (admin)",
           "request": {
             "name": "Disable a provider (admin)",
@@ -2516,7 +2699,7 @@
           }
         },
         {
-          "id": "20903dfe-6ed1-4207-93ba-88593243f1af",
+          "id": "8c893d7f-248b-4813-bed3-77fd57686ea2",
           "name": "Make this the default provider (admin)",
           "request": {
             "name": "Make this the default provider (admin)",
@@ -2564,7 +2747,7 @@
           }
         },
         {
-          "id": "d82389f9-c25d-4d51-8814-ad23fce3e855",
+          "id": "d64bed42-1f8d-4821-aae4-ca1bd95be908",
           "name": "Run a health check (admin)",
           "request": {
             "name": "Run a health check (admin)",
@@ -2612,7 +2795,7 @@
           }
         },
         {
-          "id": "12158b2e-bf38-42d0-b70f-458984b9b8ca",
+          "id": "3f9d0682-3563-440c-b1a5-50d1a72757c5",
           "name": "Delete a provider (admin)",
           "request": {
             "name": "Delete a provider (admin)",
@@ -2693,7 +2876,7 @@
     }
   ],
   "info": {
-    "_postman_id": "2a46baad-c26c-4cb2-ae1f-2ef6f10aa73a",
+    "_postman_id": "e6cd4b29-b4ce-4bd4-8632-37e20dc169a2",
     "name": "EchoGPT API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": "EchoGPT backend API.\n\n1. Set `baseUrl` (default http://localhost:3000).\n2. Run **Auth → Create an account** or **Log in** — the tokens are saved to collection variables automatically and every protected request uses them.\n3. For admin requests, log in as the seeded admin (`ADMIN_EMAIL` / `ADMIN_PASSWORD`).\n4. Ids (`providerId`, `conversationId`, `searchId`, `userId`) are captured automatically by the requests that create or list them; edit the variables to target something else.\n\nFull reference: Swagger UI at {{baseUrl}}/docs."

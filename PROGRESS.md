@@ -2,7 +2,7 @@
 
 A living log of what has been built, how, and what comes next. Anyone (human or AI assistant) can read this file and continue the work without any prior context.
 
-> **Resume here →** All phases (0–8) are done and ready for submission. Optional next steps: bonus features (email verification, streaming, search caching) — see "Interview cheat sheet" at the bottom for how to explain the project.
+> **Resume here →** All phases (0–9) are done and pushed, including the three bonus features. The project is ready for submission — see "Interview cheat sheet" at the bottom for how to explain it.
 
 ## The assignment in one paragraph
 
@@ -11,7 +11,7 @@ Build a production-ready REST backend for the [EchoGPT Chrome extension](https:/
 ## Ground rules
 
 - Build **only what the assignment asks**. Small additions are fine when they are cheap and save effort later.
-- **Bonus items are skipped**: email verification, streaming responses, search result caching. (Their tables already exist, so they can be added later.)
+- **Bonus items** (email verification, streaming responses, search result caching) were skipped at first to secure the required scope, then added in Phase 9.
 - Each phase: build → test everything against the live API + database → write a test guide → owner re-tests → commit & push → update this file → push.
 - AI provider calls are **real HTTP calls**, but no API keys are available, so everything must fail gracefully (clean error, no crash) without them.
 - Web search uses **DuckDuckGo Instant Answer** (free, no key).
@@ -31,6 +31,7 @@ Build a production-ready REST backend for the [EchoGPT Chrome extension](https:/
 | 6 | Web Search API | ✅ Done |
 | 7 | Admin Panel APIs | ✅ Done |
 | 8 | Polish & submission (Swagger sweep, Postman, README, final check) | ✅ Done |
+| 9 | Bonus features: email verification, streaming, search caching | ✅ Done |
 
 ---
 
@@ -331,7 +332,7 @@ Setup: run `npm run mock:ai` in a second terminal. As admin, add the provider be
 - [x] Recent searches (repeats collapsed)
 - [x] Search suggestions (own history first, then web autocomplete)
 - [x] Daily search limit enforced (429)
-- [ ] ~~Search result caching~~ (bonus, skipped — the `search_cache` table is ready for it)
+- [x] Search result caching — added later as a bonus (see Phase 9)
 - [x] Smoke tests: `src/search/search.spec.ts` (5 tests)
 
 **How it works (in plain words)**
@@ -463,6 +464,63 @@ For a summary you can read, use the Mock AI provider (`npm run mock:ai`). The mo
 
 ---
 
+## Phase 9 — Bonus features ✅
+
+**Endpoints**
+
+| Method | Path | Login | What it does |
+| --- | --- | --- | --- |
+| POST | `/auth/verify-email` | No | Verify the email with the token from the email |
+| GET | `/auth/verify-email?token=` | No | Same, for the link in the email |
+| POST | `/auth/resend-verification` | Yes | Send a new link (old unused links stop working) |
+| POST | `/chat/messages/stream` | Yes (Premium) | Chat reply streamed as Server-Sent Events |
+| — | `POST /search` | Yes | Now served from the cache when the same query was searched recently (`cached: true`) |
+
+**Checklist**
+
+- [x] Email verification: link sent on registration, verify (POST + GET link), resend; profile shows `emailVerifiedAt`, login/register show `emailVerified`
+- [x] Mail service: SMTP via nodemailer when `SMTP_HOST` is set, otherwise the email is written to the server log
+- [x] Streaming: `chatStream()` in all three adapters over a shared SSE reader; the new endpoint emits `start` / `delta` / `done` / `error`
+- [x] Streaming is Premium-only (`plans.allow_streaming`), and the mock AI server streams too
+- [x] Search result caching in `search_cache` with `SEARCH_CACHE_TTL_SECONDS` (default 3600, 0 = off)
+- [x] Swagger, `docs/openapi.json` (54 operations) and the Postman collection updated
+- [x] Smoke tests: 11 new (email verification, cache, streaming adapters and service) — **39 in total**
+
+**How it works (in plain words)**
+
+- **Email verification.**
+  - On sign-up we create a random 32-byte token and email a link containing it.
+  - Like refresh tokens, only its SHA-256 **hash** is stored, so a database leak can't be used to verify accounts.
+  - The link works **once** and expires after **24 hours**. Asking for a new one cancels the old one.
+  - With no mail server configured, the email is printed in the server log, so development and demos work without SMTP.
+  - If sending fails, registration still succeeds, and the user can request another link.
+  - Verification is recorded but **not enforced**, so the extension stays usable right after sign-up. Enforcing it later would be one guard.
+- **Streaming.**
+  - The vendors send the reply in small pieces (Server-Sent Events), each in its own format. Each adapter translates its vendor's pieces into simple "text" and "usage" events.
+  - The shared reader copes with events split across network packets.
+  - Our endpoint re-sends the pieces to the client as `delta` events, and the client concatenates them to show the answer as it's typed.
+  - Every check (Premium plan, daily limit, conversation ownership, provider) runs **before** the first byte, so those errors are still normal JSON.
+  - The reply is saved **only when the stream finishes**. If the AI fails midway the client gets an `error` event; if the client disconnects, the AI call is cancelled. Either way nothing is saved or counted.
+- **Search cache.**
+  - Before calling DuckDuckGo we look up a hash of "engine + normalized query" in `search_cache`, so "NestJS" and "  nestjs " match.
+  - A fresh entry is reused (`cached: true`, milliseconds instead of hundreds), and its hit count goes up. Otherwise we call the engine and store the results for the TTL.
+  - The cache is shared by all users, and only engine results are cached. The AI summary is still made per request, because it depends on the chosen provider.
+
+**Test guide**
+
+| # | Do this | Expect |
+| --- | --- | --- |
+| 1 | `POST /auth/register` with a new email | `user.emailVerified: false`; the server log shows `[email not sent — SMTP not configured]` with a link `…/auth/verify-email?token=…` |
+| 2 | Open that link in the browser (or `POST /auth/verify-email` `{ "token": "…" }`) | "Email … verified"; `GET /users/me` now has `emailVerifiedAt` |
+| 3 | Use the same link again | **400** "invalid or has already been used" |
+| 4 | `POST /auth/resend-verification` | **409** "already verified" (for an unverified user: a new link, and the old one stops working) |
+| 5 | `POST /search` `{ "query": "Bangladesh", "summarize": false }` twice | first `cached: false` (~500 ms), second `cached: true` (a few ms) |
+| 6 | As a **Free** user: `POST /chat/messages/stream` `{ "message": "hi" }` | **403** "Streaming responses are a Premium feature" |
+| 7 | Upgrade (`POST /subscriptions/me/upgrade`), run `npm run mock:ai`, repeat with `"providerId": "<Mock AI id>"` | a `text/event-stream` with `start`, many `delta`, and `done` (Swagger shows it all once finished; `curl -N` shows it live) |
+| 8 | Same with the fake-key OpenAI `providerId` | `event: error` with 502 "Invalid or unauthorized API key"; usage unchanged |
+
+---
+
 ## Interview cheat sheet
 
 **One-liner:** a NestJS + PostgreSQL REST backend for a multi-AI Chrome extension. Users chat with OpenAI, Claude or Gemini and run AI-summarized web searches within daily plan limits. Admins manage providers, users, plans and monitoring. Everything is documented in Swagger.
@@ -476,7 +534,7 @@ For a summary you can read, use the Mock AI provider (`npm run mock:ai`). The mo
 5. **Chat.** Check the quota, pick the provider/model, send the last 20 messages as context, and save the question, answer and usage in one transaction only if the AI succeeded. A failure returns 502 and costs nothing.
 6. **Search.** DuckDuckGo results plus an AI summary with citations. If the summary fails the results still come back. Saved as history snapshots, with recent searches and suggestions.
 7. **Limits and admin.** Plan limits live in the database, so they're editable live. Usage rows drive both the limits and the analytics. A request-log middleware feeds the request analytics, logs and dashboard.
-8. **Quality.** 28 smoke tests (no database needed), lint, a fresh-clone test, a Postman collection run with Newman, and conventional commits phase by phase.
+8. **Quality.** 39 smoke tests (no database needed), lint, a fresh-clone test, a Postman collection run with Newman, and conventional commits phase by phase.
 
 **Likely questions:**
 
@@ -485,7 +543,8 @@ For a summary you can read, use the Mock AI provider (`npm run mock:ai`). The mo
 - *Why store API keys encrypted and not hashed?* We must send the real key to the vendor, so it has to be decryptable — hashing is one-way. Passwords and refresh tokens are only compared, so they're hashed.
 - *How does it scale?* The API is stateless (horizontal scaling), queries are indexed and paginated, and logging is non-blocking. Next steps would be a Redis store for rate limiting and archiving old logs.
 - *Why 404 instead of 403 for other users' chats?* So nobody can even confirm that an id exists.
-- *What would you add next?* The bonus items (email verification, streaming, search caching — their tables exist), a real payment webhook, and e2e tests against a test database.
+- *How does streaming work?* The vendors stream Server-Sent Events. Each adapter turns its vendor's format into simple "text" and "usage" pieces, and our endpoint re-streams them as `start` / `delta` / `done` events. All checks run before the first byte, and the reply is saved only when the stream completes, so a failure or disconnect costs nothing.
+- *What would you add next?* A real payment webhook, enforcing email verification with a guard, a Redis rate-limit store for multiple instances, and e2e tests against a test database.
 
 ---
 
