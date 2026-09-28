@@ -35,6 +35,7 @@ src/
   subscriptions/         # plans, subscription status, upgrade/downgrade, usage limits
   providers/             # AI provider management (admin), vendor adapters, health checks
   chat/                  # send prompt, AI reply, conversation history
+  search/                # AI-assisted web search (DuckDuckGo), history, recent, suggestions
 scripts/
   mock-ai-server.js      # OpenAI-compatible mock for demos without API keys
 ```
@@ -167,6 +168,22 @@ Admins manage the AI vendors the platform uses; users pick one of the enabled pr
 
 - The last 20 messages are sent as context. Provider: requested → the conversation's → default. Model: requested (must be offered) → the conversation's → provider default.
 - Checks the daily chat limit first (**429**). If the AI provider fails the response is **502** and nothing is saved or counted.
+
+## Web search
+
+| Endpoint | Auth | Description |
+| --- | --- | --- |
+| `POST /api/v1/search` | Bearer | Search + optional AI summary (`query`, `summarize`, `providerId`) |
+| `GET /api/v1/search/history` | Bearer | Past searches, paginated |
+| `GET /api/v1/search/history/:id` | Bearer | One past search with its saved results |
+| `DELETE /api/v1/search/history/:id` | Bearer | Delete one |
+| `DELETE /api/v1/search/history` | Bearer | Clear all |
+| `GET /api/v1/search/recent` | Bearer | Latest distinct queries |
+| `GET /api/v1/search/suggestions?q=` | Bearer | Suggestions from own history + DuckDuckGo autocomplete |
+
+- Results come from the free, keyless **DuckDuckGo Instant Answer** API (topic summaries and related links; question-style queries often return nothing).
+- The AI summary uses any chat provider. If it fails, results are still returned with `summaryError`.
+- Counts toward the daily search limit (**429**); an unreachable engine returns **502** and nothing is counted.
 
 ### Trying chat without an API key
 

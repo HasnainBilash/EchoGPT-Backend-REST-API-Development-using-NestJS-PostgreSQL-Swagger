@@ -2,7 +2,7 @@
 
 A living log of what has been built, how, and what comes next. Anyone (human or AI assistant) can read this file and continue the work without any prior context.
 
-> **Resume here →** Phases 1–5 are done (1–4 pushed; 5 tested by the developer, awaiting the owner's re-test before push). **Next: Phase 6 — Web Search API.**
+> **Resume here →** Phases 1–6 are done (1–5 pushed; 6 tested by the developer, awaiting the owner's re-test before push). **Next: Phase 7 — Admin Panel APIs.**
 
 ## The assignment in one paragraph
 
@@ -28,8 +28,8 @@ Build a production-ready REST backend for the [EchoGPT Chrome extension](https:/
 | 3 | Subscription Management | ✅ Done |
 | 4 | AI Provider Management | ✅ Done |
 | 5 | Chat API | ✅ Done |
-| 6 | Web Search API | ⏭️ Next |
-| 7 | Admin Panel APIs | ⬜ |
+| 6 | Web Search API | ✅ Done |
+| 7 | Admin Panel APIs | ⏭️ Next |
 | 8 | Polish & submission (Swagger sweep, Postman, README, final check) | ⬜ |
 
 ---
@@ -307,11 +307,60 @@ Setup: run `npm run mock:ai` in a second terminal. As admin, add the provider be
 | 11 | Send more than 20 messages in one day on Free | **429** "Daily chat limit reached (20/20)…" |
 | 12 | `DELETE /chat/conversations/{id}` | **200**; `GET` it again → **404** |
 
-## Phase 6 — Web Search API
+---
 
-- [ ] Search query via DuckDuckGo Instant Answer (+ optional AI summary)
-- [ ] Search history, recent searches, suggestions
-- [ ] Counts toward plan limits
+## Phase 6 — Web Search API ✅
+
+**Endpoints** (Swagger tag **Web Search**, all need login)
+
+| Method | Path | What it does |
+| --- | --- | --- |
+| POST | `/search` | Search DuckDuckGo + optional AI summary (`summarize`, `providerId`) |
+| GET | `/search/history?page=&limit=` | My past searches, newest first |
+| GET | `/search/history/{id}` | One past search with its saved results and summary |
+| DELETE | `/search/history/{id}` | Delete one |
+| DELETE | `/search/history` | Clear all my history |
+| GET | `/search/recent?limit=` | Latest distinct queries |
+| GET | `/search/suggestions?q=` | Suggestions while typing (my history + DuckDuckGo autocomplete) |
+
+**Checklist**
+
+- [x] Search query (DuckDuckGo Instant Answer, free, no key)
+- [x] AI-assisted: optional summary with citations from any chat provider
+- [x] Search history (paginated), view, delete one, clear all
+- [x] Recent searches (repeats collapsed)
+- [x] Search suggestions (own history first, then web autocomplete)
+- [x] Daily search limit enforced (429)
+- [ ] ~~Search result caching~~ (bonus, skipped — the `search_cache` table is ready for it)
+- [x] Smoke tests: `src/search/search.spec.ts` (5 tests)
+
+**How it works (in plain words)**
+
+- **The search engine.** DuckDuckGo's free Instant Answer API gives a topic summary (often from Wikipedia), official links and related topics. We turn that into a clean list of up to 10 results `{ title, url, snippet, source }`, with duplicates removed. It is not a full web index: topics ("NestJS", "Bangladesh") work well, but questions ("what is rest api") usually return 0 results. That's a limit of the free API, not an error. Swapping in a paid engine later means replacing one class (`DuckDuckGoClient`).
+- **AI-assisted.** Unless `summarize` is false, the results are numbered and sent to an AI provider, which writes a 2–4 sentence answer citing them like [1]. It's the same adapters as chat, so any provider works.
+- **Graceful failure.** If the summary fails (bad key, AI down), the search **still succeeds**: you get the results, `summary: null` and a `summaryError` saying why. Only an unreachable search engine fails the request (**502**), and then nothing is saved or counted. A wrong `providerId` is rejected before any work is done.
+- **History is a snapshot.** Each search stores its results and summary, so reopening it later shows exactly what you saw, even if the web has changed.
+- **Recent vs history.** History lists every search. Recent collapses repeats, so "NestJS" and "  nestjs " count as the same query because queries are normalized: trimmed, spaces collapsed, lower-cased.
+- **Suggestions** show your own matching past searches first, then DuckDuckGo autocomplete. If autocomplete is down, you still get your history. Suggestions don't count toward any limit.
+- **Quirk handled.** DuckDuckGo sometimes answers mixed-case queries with an empty body, so queries are sent lower-cased and an empty reply means "no results".
+
+**Test guide**
+
+For a summary you can read, use the Mock AI provider (`npm run mock:ai`). The mock just echoes the prompt it was given, which shows the numbered results the AI receives. A real provider would write a proper answer.
+
+| # | Do this (as a normal user) | Expect |
+| --- | --- | --- |
+| 1 | `POST /search` `{ "query": "NestJS", "providerId": "<Mock AI id>" }` | **200** — ~4 results (Wikipedia first), `summary` from Mock AI, `usage.remaining` 9 |
+| 2 | `{ "query": "Bangladesh", "providerId": "<OpenAI id with fake key>" }` | **200** — results returned, `summary: null`, `summaryError` "…Invalid or unauthorized API key (HTTP 401)" |
+| 3 | `{ "query": "what is rest api", "summarize": false }` | **200** — `resultCount: 0` (Instant Answer limitation), no summary |
+| 4 | `{ "query": "  nestjs  ", "summarize": false }` | **200** — same results as step 1 |
+| 5 | `GET /search/history` | all 4 searches, newest first |
+| 6 | `GET /search/history/{id from step 1}` | saved results + summary |
+| 7 | `GET /search/recent` | `nestjs`, `what is rest api`, `Bangladesh` — NestJS appears once |
+| 8 | `GET /search/suggestions?q=ne` | `nestjs` (source `history`) first, then web suggestions |
+| 9 | Another user: `GET /search/history/{same id}` | **404** |
+| 10 | More than 10 searches in a day on Free | **429** "Daily search limit reached…" |
+| 11 | `DELETE /search/history/{id}`, then `DELETE /search/history` | "Search deleted", then "Deleted N search(es)" |
 
 ## Phase 7 — Admin Panel APIs
 
