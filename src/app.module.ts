@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { ChatModule } from './chat/chat.module';
 import { ProvidersModule } from './providers/providers.module';
+import { SearchModule } from './search/search.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { UsersModule } from './users/users.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -39,6 +40,7 @@ import { PrismaModule } from './prisma/prisma.module';
     SubscriptionsModule,
     ProvidersModule,
     ChatModule,
+    SearchModule,
   ],
   controllers: [HealthController],
   providers: [
