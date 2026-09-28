@@ -20,6 +20,8 @@ export class ApiUsageLoggerMiddleware implements NestMiddleware {
         userId: this.decodeUserId(req),
         method: req.method,
         path: (req.originalUrl || req.url).slice(0, 2048),
+        // Route pattern (e.g. /api/v1/chat/conversations/:id), set by Express once routing matched.
+        route: (req.route as { path?: string } | undefined)?.path?.slice(0, 255),
         statusCode: res.statusCode,
         durationMs: Date.now() - start,
         ipAddress: req.ip,
