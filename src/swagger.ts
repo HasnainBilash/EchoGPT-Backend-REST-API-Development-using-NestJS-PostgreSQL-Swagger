@@ -15,6 +15,23 @@ Outside Swagger, send it as a header: \`Authorization: Bearer <accessToken>\`. I
 
 All errors use the same format: \`{ statusCode, error, message, path, timestamp }\`.`;
 
+const TAGS: [string, string][] = [
+  ['Health', 'Liveness / readiness probe.'],
+  ['Auth', 'Register, log in, rotate tokens, log out.'],
+  ['Users', 'My profile, password and account.'],
+  ['Subscriptions', 'Plans, my subscription, upgrade/downgrade and remaining requests.'],
+  ['AI Providers', 'AI providers available to chat with.'],
+  ['Chat', 'Send prompts and manage conversation history.'],
+  ['Web Search', 'AI-assisted web search, history, recent searches and suggestions.'],
+  [
+    'Admin · Dashboard & Monitoring',
+    'Admin only: statistics, analytics, request logs, system health.',
+  ],
+  ['Admin · Users', 'Admin only: user management.'],
+  ['Admin · Subscriptions', 'Admin only: subscriptions and plans.'],
+  ['Admin · AI Providers', 'Admin only: add, configure and health-check AI providers.'],
+];
+
 const LOGIN_NOTE =
   '**Requires login** — the access token is sent in the `Authorization` header ' +
   '(click **Authorize**, or log in first on this page). Do not put it in the body.';
@@ -57,10 +74,15 @@ export const setupSwagger = (app: INestApplication): void => {
         description: 'Paste the `accessToken` (not the refreshToken). No "Bearer " prefix.',
       },
       BEARER_SCHEME,
-    )
-    .build();
+    );
+  // Declared in display order, with a one-line description per section.
+  for (const [name, description] of TAGS) {
+    config.addTag(name, description);
+  }
 
-  const document = SwaggerModule.createDocument(app, config, { extraModels: [ErrorResponseDto] });
+  const document = SwaggerModule.createDocument(app, config.build(), {
+    extraModels: [ErrorResponseDto],
+  });
   annotateProtectedOperations(document);
 
   SwaggerModule.setup('docs', app, document, {

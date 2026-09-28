@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiErrorResponses } from '../common/decorators/api-error-responses.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { PlanDto } from './dto/subscription.dto';
 import { SubscriptionsService } from './subscriptions.service';
@@ -16,6 +17,7 @@ export class PlansController {
     description: 'Public — lets the extension show a pricing screen before login.',
   })
   @ApiOkResponse({ type: PlanDto, isArray: true })
+  @ApiErrorResponses(429)
   list(): Promise<PlanDto[]> {
     return this.subscriptions.listPlans();
   }
