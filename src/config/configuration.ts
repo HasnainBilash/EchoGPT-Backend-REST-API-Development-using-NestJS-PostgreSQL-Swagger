@@ -26,6 +26,7 @@ export const configuration = () => {
       refreshSecret: env.JWT_REFRESH_SECRET as string,
       refreshTtl: env.JWT_REFRESH_TTL ?? '30d',
     },
+    crypto: { encryptionKey: env.ENCRYPTION_KEY as string },
   };
 };
 

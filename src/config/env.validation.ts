@@ -1,5 +1,15 @@
 import { plainToInstance, Transform } from 'class-transformer';
-import { IsEnum, IsIn, IsInt, IsOptional, IsString, Max, Min, validateSync } from 'class-validator';
+import {
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  Min,
+  validateSync,
+} from 'class-validator';
 
 export enum NodeEnv {
   Development = 'development',
@@ -57,6 +67,11 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   JWT_REFRESH_TTL = '30d';
+
+  @Matches(/^[0-9a-fA-F]{64}$/, {
+    message: 'ENCRYPTION_KEY must be 64 hex characters (32 bytes), e.g. `openssl rand -hex 32`',
+  })
+  ENCRYPTION_KEY: string;
 }
 
 export function validateEnv(config: Record<string, unknown>): EnvironmentVariables {
