@@ -1,15 +1,23 @@
-/** Error from calling an AI vendor. `status` is the vendor's HTTP status, when there was one. */
+/**
+ * Error from calling an AI vendor. `message` has the vendor's full detail (for admins/logs);
+ * `summary` is the short version that is safe to show end users.
+ */
 export class ProviderRequestError extends Error {
+  readonly summary: string;
+
   constructor(
     message: string,
     readonly status?: number,
+    summary?: string,
   ) {
     super(message);
     this.name = 'ProviderRequestError';
+    this.summary = summary ?? message;
   }
 }
 
 export const PROVIDER_TIMEOUT_MS = 15_000;
+export const CHAT_TIMEOUT_MS = 60_000;
 
 /** fetch + JSON with a timeout, turning every failure mode into a readable ProviderRequestError. */
 export async function requestJson<T>(
@@ -26,7 +34,11 @@ export async function requestJson<T>(
     }
     const cause =
       err instanceof Error ? ((err.cause as Error | undefined)?.message ?? err.message) : '';
-    throw new ProviderRequestError(`Could not reach provider: ${cause}`);
+    throw new ProviderRequestError(
+      `Could not reach provider: ${cause}`,
+      undefined,
+      'Could not reach the AI provider',
+    );
   }
 
   const text = await res.text();
@@ -52,6 +64,7 @@ export async function requestJson<T>(
     throw new ProviderRequestError(
       `${prefix} (HTTP ${res.status}): ${vendorMessage}`.slice(0, 500),
       res.status,
+      `${prefix} (HTTP ${res.status})`,
     );
   }
 

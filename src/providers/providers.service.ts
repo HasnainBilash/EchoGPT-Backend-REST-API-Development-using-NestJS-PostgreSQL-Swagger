@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { AiProvider, HealthStatus, Prisma } from '@prisma/client';
 import { EncryptionService } from '../common/crypto/encryption.service';
@@ -163,6 +164,39 @@ export class ProvidersService {
       },
     });
     return this.toDto(updated);
+  }
+
+  /**
+   * Picks the provider for a chat request: the one the user asked for, else the one the
+   * conversation already uses (if still enabled), else the default.
+   */
+  async resolveForChat(requestedId?: string, conversationProviderId?: string | null) {
+    if (requestedId) {
+      const requested = await this.prisma.aiProvider.findUnique({ where: { id: requestedId } });
+      if (!requested) {
+        throw new NotFoundException('AI provider not found');
+      }
+      if (!requested.isEnabled) {
+        throw new BadRequestException(`Provider "${requested.name}" is currently disabled`);
+      }
+      return requested;
+    }
+
+    if (conversationProviderId) {
+      const previous = await this.prisma.aiProvider.findFirst({
+        where: { id: conversationProviderId, isEnabled: true },
+      });
+      if (previous) return previous;
+    }
+
+    const fallback = await this.prisma.aiProvider.findFirst({
+      where: { isEnabled: true },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+    });
+    if (!fallback) {
+      throw new ServiceUnavailableException('No AI provider is available right now');
+    }
+    return fallback;
   }
 
   /** Decrypted connection details for server-side calls. Never expose this through the API. */
