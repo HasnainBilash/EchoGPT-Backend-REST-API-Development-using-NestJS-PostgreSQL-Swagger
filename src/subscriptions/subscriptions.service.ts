@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { Plan, PlanCode, Prisma, SubscriptionStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlanDto, SubscriptionChangeDto, SubscriptionDto } from './dto/subscription.dto';
@@ -118,6 +123,49 @@ export class SubscriptionsService {
     });
 
     return { ...this.toSubscription(updated), message: 'Downgraded to the Free plan' };
+  }
+
+  /** Admin: put any user on a plan (e.g. grant Premium), regardless of their current plan. */
+  async adminSetPlan(
+    userId: string,
+    code: PlanCode,
+    periodDays = PREMIUM_PERIOD_DAYS,
+  ): Promise<SubscriptionDto> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    await this.getCurrent(userId);
+
+    const plan = await this.getPlan(code);
+    const now = new Date();
+    const isFree = code === PlanCode.FREE;
+    const updated = await this.prisma.subscription.update({
+      where: { userId },
+      data: {
+        planId: plan.id,
+        status: SubscriptionStatus.ACTIVE,
+        startedAt: now,
+        currentPeriodEnd: isFree ? null : new Date(now.getTime() + periodDays * 86_400_000),
+        canceledAt: null,
+      },
+      include: { plan: true },
+    });
+    return this.toSubscription(updated);
+  }
+
+  /** Admin: change a plan's price or limits. Applies to every subscriber immediately. */
+  async adminUpdatePlan(code: PlanCode, data: Prisma.PlanUpdateInput): Promise<PlanDto> {
+    const plan = await this.prisma.plan.findUnique({ where: { code } });
+    if (!plan) {
+      throw new NotFoundException('Plan not found');
+    }
+    if (code === PlanCode.FREE && data.isActive === false) {
+      throw new ConflictException(
+        'The Free plan cannot be deactivated — every account falls back to it',
+      );
+    }
+    return this.toPlan(await this.prisma.plan.update({ where: { code }, data }));
   }
 
   private async getPlan(code: PlanCode): Promise<Plan> {

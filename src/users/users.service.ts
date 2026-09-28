@@ -119,6 +119,67 @@ export class UsersService {
     return this.toProfile(updated);
   }
 
+  /** Admin: activate or deactivate an account. Deactivating signs the user out everywhere. */
+  async setActive(
+    actorId: string,
+    targetUserId: string,
+    isActive: boolean,
+  ): Promise<UserProfileDto> {
+    if (actorId === targetUserId && !isActive) {
+      throw new ConflictException('You cannot deactivate your own account');
+    }
+    const target = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { isActive: true, role: { select: { name: true } } },
+    });
+    if (!target) {
+      throw new NotFoundException('User not found');
+    }
+    if (!isActive && target.isActive && target.role.name === RoleName.ADMIN) {
+      const activeAdmins = await this.prisma.user.count({
+        where: { isActive: true, role: { name: RoleName.ADMIN } },
+      });
+      if (activeAdmins <= 1) {
+        throw new ConflictException('Cannot deactivate the last active admin');
+      }
+    }
+
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: targetUserId },
+        data: { isActive },
+        select: PROFILE_SELECT,
+      }),
+      ...(isActive
+        ? []
+        : [
+            this.prisma.session.updateMany({
+              where: { userId: targetUserId, revokedAt: null },
+              data: { revokedAt: new Date() },
+            }),
+          ]),
+    ]);
+    return this.toProfile(updated);
+  }
+
+  /** Admin: permanently delete another user's account. */
+  async adminDelete(actorId: string, targetUserId: string): Promise<void> {
+    if (actorId === targetUserId) {
+      throw new ConflictException('Use DELETE /users/me to delete your own account');
+    }
+    const target = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { role: { select: { name: true } } },
+    });
+    if (!target) {
+      throw new NotFoundException('User not found');
+    }
+    if (target.role.name === RoleName.ADMIN) {
+      await this.assertNotLastAdmin('The last admin account cannot be deleted');
+    }
+    await this.prisma.user.delete({ where: { id: targetUserId } });
+  }
+
   private async findWithPassword(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

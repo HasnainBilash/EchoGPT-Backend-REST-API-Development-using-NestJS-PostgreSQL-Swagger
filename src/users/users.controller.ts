@@ -7,21 +7,16 @@ import {
   HttpCode,
   HttpStatus,
   Ip,
-  Param,
-  ParseUUIDPipe,
   Patch,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { RoleName } from '@prisma/client';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthResponseDto, MessageResponseDto } from '../auth/dto/auth-response.dto';
 import { ApiErrorResponses } from '../common/decorators/api-error-responses.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { Roles } from '../common/decorators/roles.decorator';
 import { AuthenticatedUser } from '../common/types/authenticated-user.type';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
-import { UpdateRoleDto } from './dto/update-role.dto';
 import { UserProfileDto } from './dto/user-profile.dto';
 import { UsersService } from './users.service';
 
@@ -87,21 +82,5 @@ export class UsersController {
   ): Promise<MessageResponseDto> {
     await this.users.deleteAccount(user.id, dto.password);
     return { message: 'Account deleted' };
-  }
-
-  @Patch(':id/role')
-  @Roles(RoleName.ADMIN)
-  @ApiOperation({
-    summary: 'Change a user role (admin only)',
-    description: 'Promote to ADMIN or demote to USER. The last admin cannot be demoted.',
-  })
-  @ApiParam({ name: 'id', format: 'uuid', description: 'User id' })
-  @ApiOkResponse({ type: UserProfileDto })
-  @ApiErrorResponses(400, 401, 403, 404, 409)
-  updateRole(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateRoleDto,
-  ): Promise<UserProfileDto> {
-    return this.users.updateRole(id, dto.role);
   }
 }

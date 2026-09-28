@@ -2,6 +2,7 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { ChatModule } from './chat/chat.module';
 import { ProvidersModule } from './providers/providers.module';
@@ -41,6 +42,7 @@ import { PrismaModule } from './prisma/prisma.module';
     ProvidersModule,
     ChatModule,
     SearchModule,
+    AdminModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -65,7 +65,7 @@ export class UsageService {
   }
 }
 
-function startOfUtcDay(now = new Date()): Date {
+export function startOfUtcDay(now = new Date()): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
 
