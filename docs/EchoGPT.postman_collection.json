@@ -1,0 +1,2711 @@
+{
+  "item": [
+    {
+      "name": "Health",
+      "description": "Liveness / readiness probe.",
+      "item": [
+        {
+          "id": "e6587f93-e491-4676-9968-69bac8287c22",
+          "name": "Liveness / readiness probe",
+          "request": {
+            "name": "Liveness / readiness probe",
+            "description": {
+              "content": "Public endpoint for load balancers and container orchestrators. Checks DB connectivity.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {},
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "description": "Register, log in, rotate tokens, log out.",
+      "item": [
+        {
+          "id": "72472753-81af-435a-9aaa-c4ad8b3e31fc",
+          "name": "Create an account",
+          "request": {
+            "name": "Create an account",
+            "description": {
+              "content": "Creates a USER account on the Free plan and returns a token pair (auto-login).",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "disabled": false,
+                "description": {
+                  "content": "(Required) ",
+                  "type": "text/plain"
+                },
+                "key": "user-agent",
+                "value": "laboris Excepteur ul"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"jane@example.com\",\n  \"password\": \"Str0ngPassw0rd!\",\n  \"fullName\": \"Jane Doe\"\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', j.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', j.refreshToken);",
+                  "  if (j.user) pm.collectionVariables.set('userId', j.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "471c4720-7031-43f1-923e-24b5a4b4f534",
+          "name": "Log in with email and password",
+          "request": {
+            "name": "Log in with email and password",
+            "description": {
+              "content": "Starts a new session (one per device) and returns an access + refresh token.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "disabled": false,
+                "description": {
+                  "content": "(Required) ",
+                  "type": "text/plain"
+                },
+                "key": "user-agent",
+                "value": "laboris Excepteur ul"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"jane@example.com\",\n  \"password\": \"Str0ngPassw0rd!\"\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', j.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', j.refreshToken);",
+                  "  if (j.user) pm.collectionVariables.set('userId', j.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "3db186d0-d0fd-457c-af68-8e30516945aa",
+          "name": "Get a new token pair",
+          "request": {
+            "name": "Get a new token pair",
+            "description": {
+              "content": "Exchanges a refresh token for a new access + refresh token. The old refresh token is invalidated (rotation); replaying it revokes the whole session.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', j.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', j.refreshToken);",
+                  "  if (j.user) pm.collectionVariables.set('userId', j.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "cbfc08bb-ff5c-4788-81b4-f1d1490741c0",
+          "name": "Log out of the current device",
+          "request": {
+            "name": "Log out of the current device",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nRevokes the session that owns the given refresh token.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "logout"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "be5319ca-2147-4771-998a-ce7402733fdb",
+          "name": "Log out of all devices",
+          "request": {
+            "name": "Log out of all devices",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nRevokes every active session of the current user.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "logout-all"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "My profile, password and account.",
+      "item": [
+        {
+          "id": "1fb47115-f02e-4fa9-a3e5-24b593628022",
+          "name": "Get my profile",
+          "request": {
+            "name": "Get my profile",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "me"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "c2cefac5-9000-4bfe-ad10-291cbcc1f0a7",
+          "name": "Update my profile",
+          "request": {
+            "name": "Update my profile",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nOnly the fields you send are changed. Email and role cannot be changed here.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "me"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "PATCH",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Jane Doe\",\n  \"avatarUrl\": \"https://example.com/avatar.png\"\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "fd86547e-3d12-4c63-ada8-b1f17afd9da6",
+          "name": "Change my password",
+          "request": {
+            "name": "Change my password",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nRequires the current password. Signs out **all** devices, then returns a fresh token pair for this one (applied to Authorize automatically in Swagger).",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "me",
+                "password"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "disabled": false,
+                "description": {
+                  "content": "(Required) ",
+                  "type": "text/plain"
+                },
+                "key": "user-agent",
+                "value": "laboris Excepteur ul"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "PATCH",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"Str0ngPassw0rd!\",\n  \"newPassword\": \"N3wStr0ngPassw0rd!\"\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', j.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', j.refreshToken);",
+                  "  if (j.user) pm.collectionVariables.set('userId', j.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "88971be7-5275-4ae9-b129-11679c6bd72a",
+          "name": "Delete my account",
+          "request": {
+            "name": "Delete my account",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nPermanently deletes the account and all its data (sessions, subscription, chats, searches). Requires the password. The last admin cannot be deleted.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "me"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "DELETE",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"Str0ngPassw0rd!\"\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subscriptions",
+      "description": "Plans, my subscription, upgrade/downgrade and remaining requests.",
+      "item": [
+        {
+          "id": "30f61a7a-f4af-478f-ab08-9de1c67863eb",
+          "name": "List available plans",
+          "request": {
+            "name": "List available plans",
+            "description": {
+              "content": "Public — lets the extension show a pricing screen before login.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "plans"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {},
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "428de2e7-08cc-48fe-84e3-a5af54222763",
+          "name": "Get my subscription status",
+          "request": {
+            "name": "Get my subscription status",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nCurrent plan and status. `ACTIVE` = plan in force; `CANCELED` = downgraded to Free; `EXPIRED` = Premium period ended and the account returned to Free.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "subscriptions",
+                "me"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "2cc9db30-3876-41a3-af9e-990088d59fc6",
+          "name": "Get my usage and remaining requests",
+          "request": {
+            "name": "Get my usage and remaining requests",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nChat and search requests used today (UTC) versus the plan limit. Counters reset at `resetsAt`. `null` limit/remaining means unlimited.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "subscriptions",
+                "me",
+                "usage"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "1e996beb-2a5a-441b-bcb5-83b292e00310",
+          "name": "Upgrade to Premium",
+          "request": {
+            "name": "Upgrade to Premium",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nStarts a 30-day Premium period with higher limits. No payment is taken (out of scope for this API); in production this would be triggered by a payment provider webhook.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "subscriptions",
+                "me",
+                "upgrade"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "5d70b6cc-8ec6-48f5-b443-69b3ff9270ba",
+          "name": "Downgrade to Free",
+          "request": {
+            "name": "Downgrade to Free",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nSwitches back to the Free plan immediately; Free limits apply from now on.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "subscriptions",
+                "me",
+                "downgrade"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI Providers",
+      "description": "AI providers available to chat with.",
+      "item": [
+        {
+          "id": "9689f26b-9ad2-404d-ac67-d9665dfdea98",
+          "name": "List providers I can chat with",
+          "request": {
+            "name": "List providers I can chat with",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nEnabled providers and their models, default first. No secrets.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "providers"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "const id = Array.isArray(j) && j[0] && j[0].id;",
+                  "if (pm.response.code < 300 && id) pm.collectionVariables.set('providerId', id);"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chat",
+      "description": "Send prompts and manage conversation history.",
+      "item": [
+        {
+          "id": "b6ccfaef-c911-430a-8a13-d9968121151c",
+          "name": "Send a prompt and get the AI reply",
+          "request": {
+            "name": "Send a prompt and get the AI reply",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nStarts a new conversation (omit `conversationId`) or continues one. The last 20 messages are sent as context. Counts toward the daily chat limit (429 when used up). If the AI provider fails, 502 is returned and nothing is saved or counted.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "chat",
+                "messages"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Explain what a REST API is in two sentences.\"\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "const id = j.conversation && j.conversation.id;",
+                  "if (pm.response.code < 300 && id) pm.collectionVariables.set('conversationId', id);"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "acffa842-ad0d-4cc4-b62c-f193ed56d557",
+          "name": "List my conversations",
+          "request": {
+            "name": "List my conversations",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nMost recently active first.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "chat",
+                "conversations"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": false,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "disabled": false,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "limit",
+                  "value": "20"
+                }
+              ],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "fcdcc0c8-e48c-4338-9c15-dd12bdb96091",
+          "name": "Get a conversation with its messages",
+          "request": {
+            "name": "Get a conversation with its messages",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "chat",
+                "conversations",
+                ":id"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "type": "any",
+                  "value": "{{conversationId}}",
+                  "key": "id",
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) Conversation id",
+                    "type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "23718f14-ecdb-4978-95f5-e60e77a507a4",
+          "name": "Rename a conversation",
+          "request": {
+            "name": "Rename a conversation",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "chat",
+                "conversations",
+                ":id"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "type": "any",
+                  "value": "{{conversationId}}",
+                  "key": "id",
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) Conversation id",
+                    "type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "PATCH",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"REST API basics\"\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "cfdcf59f-3f52-450b-8441-a36ec1571e3f",
+          "name": "Delete a conversation and its messages",
+          "request": {
+            "name": "Delete a conversation and its messages",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "chat",
+                "conversations",
+                ":id"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "type": "any",
+                  "value": "{{conversationId}}",
+                  "key": "id",
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) Conversation id",
+                    "type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "DELETE",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "Web Search",
+      "description": "AI-assisted web search, history, recent searches and suggestions.",
+      "item": [
+        {
+          "id": "9b848522-1d9a-4d4f-85f6-398ed9906ec5",
+          "name": "Search the web (AI-assisted)",
+          "request": {
+            "name": "Search the web (AI-assisted)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nSearches DuckDuckGo and, unless `summarize` is false, asks an AI provider to summarize the results with citations. If the summary fails the results are still returned, with `summaryError` explaining why. Saved to history and counted toward the daily search limit (429). DuckDuckGo Instant Answer works best for topics (\"NestJS\", \"Bangladesh\"); questions often return no results.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "search"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"NestJS\",\n  \"summarize\": true\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "const id = j.id;",
+                  "if (pm.response.code < 300 && id) pm.collectionVariables.set('searchId', id);"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "c5932f94-26de-4468-9fd3-f12e88d86d72",
+          "name": "My search history",
+          "request": {
+            "name": "My search history",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nNewest first, paginated.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "search",
+                "history"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": false,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "disabled": false,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "limit",
+                  "value": "20"
+                }
+              ],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "73b278e1-f5a5-4d2b-a518-733dfa727130",
+          "name": "Get one past search",
+          "request": {
+            "name": "Get one past search",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nReturns the saved results and summary exactly as they were.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "search",
+                "history",
+                ":id"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "type": "any",
+                  "value": "{{searchId}}",
+                  "key": "id",
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) Search id",
+                    "type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "051426a4-c818-4adc-9069-bab44e5dd5bc",
+          "name": "My recent searches",
+          "request": {
+            "name": "My recent searches",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nLatest distinct queries — repeated searches appear once.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "search",
+                "recent"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": false,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "limit",
+                  "value": "10"
+                }
+              ],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "a9533330-4eb1-4b34-9030-96ea17a32957",
+          "name": "Search suggestions while typing",
+          "request": {
+            "name": "Search suggestions while typing",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nUp to 8 suggestions: your own matching past searches first (`history`), then DuckDuckGo autocomplete (`web`). Does not count toward any limit.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "search",
+                "suggestions"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) What the user has typed so far.",
+                    "type": "text/plain"
+                  },
+                  "key": "q",
+                  "value": "nest"
+                }
+              ],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "ded0441b-4028-4113-a8a5-835342d5c6f3",
+          "name": "Delete one search from history",
+          "request": {
+            "name": "Delete one search from history",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "search",
+                "history",
+                ":id"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "type": "any",
+                  "value": "{{searchId}}",
+                  "key": "id",
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) Search id",
+                    "type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "DELETE",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "765842e1-55f1-4513-9c7f-521e4baf85b1",
+          "name": "Clear my whole search history",
+          "request": {
+            "name": "Clear my whole search history",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "search",
+                "history"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "DELETE",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin · Dashboard & Monitoring",
+      "description": "Admin only: statistics, analytics, request logs, system health.",
+      "item": [
+        {
+          "id": "4630cf64-4db2-495d-aef6-5e2cfa678226",
+          "name": "Dashboard statistics (admin)",
+          "request": {
+            "name": "Dashboard statistics (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nUsers, plans, today's usage, content totals, providers and last-24h request stats.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "dashboard"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "dfdebc7a-c020-4092-967b-6cf4a1c0780b",
+          "name": "API usage analytics (admin)",
+          "request": {
+            "name": "API usage analytics (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nChats, searches and tokens per day, usage per AI provider, and the top 10 users.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "analytics",
+                "usage"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": false,
+                  "description": {
+                    "content": "Days back from today (UTC).",
+                    "type": "text/plain"
+                  },
+                  "key": "days",
+                  "value": "7"
+                }
+              ],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "97ba7da2-46d7-4b75-ab15-758a6533d538",
+          "name": "HTTP request analytics (admin)",
+          "request": {
+            "name": "HTTP request analytics (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nRequests, errors and average latency per day, the busiest endpoints and status codes.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "analytics",
+                "requests"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": false,
+                  "description": {
+                    "content": "Days back from today (UTC).",
+                    "type": "text/plain"
+                  },
+                  "key": "days",
+                  "value": "7"
+                }
+              ],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "dc333a7a-33e2-4483-8e33-de0a82a31286",
+          "name": "Request logs (admin)",
+          "request": {
+            "name": "Request logs (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nEvery API request, newest first. Filter by user, method, status, path or time range.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "request-logs"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": false,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "disabled": false,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "userId",
+                  "value": "urn:uuid:914fbf66-bf8b-8b83-b301-cb40988015de"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "method",
+                  "value": "DELETE"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "Exact status code.",
+                    "type": "text/plain"
+                  },
+                  "key": "statusCode",
+                  "value": "404"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "Only responses with status >= this (e.g. 400 = errors only).",
+                    "type": "text/plain"
+                  },
+                  "key": "minStatus",
+                  "value": "400"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "Path contains this text.",
+                    "type": "text/plain"
+                  },
+                  "key": "path",
+                  "value": "/chat"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "from",
+                  "value": "2026-09-28T00:00:00Z"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "to",
+                  "value": "2026-09-29T00:00:00Z"
+                }
+              ],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "169c29b4-8172-4242-9187-1493167b2dcc",
+          "name": "System health (admin)",
+          "request": {
+            "name": "System health (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nDatabase, runtime (uptime, memory) and AI provider health. `refreshProviders=true` runs a live check on every enabled provider first.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "system",
+                "health"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "Run a live health check on every enabled provider first (slower).",
+                    "type": "text/plain"
+                  },
+                  "key": "refreshProviders",
+                  "value": "false"
+                }
+              ],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin · Users",
+      "description": "Admin only: user management.",
+      "item": [
+        {
+          "id": "6994b0db-e498-412f-a3f9-da8a8212c1b0",
+          "name": "List users (admin)",
+          "request": {
+            "name": "List users (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nNewest first. Filter by `search` (email/name), `role` and `isActive`.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": false,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "disabled": false,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "Matches email or name (case-insensitive).",
+                    "type": "text/plain"
+                  },
+                  "key": "search",
+                  "value": "jane"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "role",
+                  "value": "ADMIN"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "isActive",
+                  "value": "false"
+                }
+              ],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "c4f79cb8-c68f-48a1-849d-77ef2bf485ff",
+          "name": "Get a user with plan and activity stats (admin)",
+          "request": {
+            "name": "Get a user with plan and activity stats (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users",
+                ":id"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "type": "any",
+                  "value": "{{userId}}",
+                  "key": "id",
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) User id",
+                    "type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "b48c6a84-648f-4dcb-b76a-9a2227f57af9",
+          "name": "Change a user role (admin)",
+          "request": {
+            "name": "Change a user role (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nPromote to ADMIN or demote to USER. The last admin cannot be demoted.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users",
+                ":id",
+                "role"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "type": "any",
+                  "value": "{{userId}}",
+                  "key": "id",
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) User id",
+                    "type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "PATCH",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "076a5a17-a1c4-432e-a8f8-3ab1f1ebbc4b",
+          "name": "Activate or deactivate a user (admin)",
+          "request": {
+            "name": "Activate or deactivate a user (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nA deactivated user is signed out everywhere and cannot log in until reactivated. You cannot deactivate yourself or the last active admin.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users",
+                ":id",
+                "status"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "type": "any",
+                  "value": "{{userId}}",
+                  "key": "id",
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) User id",
+                    "type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "PATCH",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": false\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "6c1e00e8-b8a8-42ac-917f-8ba0eee2a58f",
+          "name": "Delete a user (admin)",
+          "request": {
+            "name": "Delete a user (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nPermanently deletes the account and its data. Not for your own account or the last admin.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users",
+                ":id"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "type": "any",
+                  "value": "{{userId}}",
+                  "key": "id",
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) User id",
+                    "type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "DELETE",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin · Subscriptions",
+      "description": "Admin only: subscriptions and plans.",
+      "item": [
+        {
+          "id": "93abc160-11b4-4b89-b07b-f5c5481614f0",
+          "name": "List subscriptions (admin)",
+          "request": {
+            "name": "List subscriptions (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nFilter by `plan` and `status`.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "subscriptions"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": false,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "disabled": false,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "plan",
+                  "value": "PREMIUM"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "",
+                    "type": "text/plain"
+                  },
+                  "key": "status",
+                  "value": "ACTIVE"
+                }
+              ],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "c3a905cb-523f-4cfc-9db8-ccea9531ca13",
+          "name": "Set a user's plan (admin)",
+          "request": {
+            "name": "Set a user's plan (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nE.g. grant Premium for N days, or move a user back to Free. Status becomes ACTIVE.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "subscriptions",
+                ":userId"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "type": "any",
+                  "value": "{{userId}}",
+                  "key": "userId",
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) ",
+                    "type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "PATCH",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan\": \"PREMIUM\",\n  \"periodDays\": 30\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "fd421329-042a-41c9-a3b5-424a41255a12",
+          "name": "Edit a plan: price and limits (admin)",
+          "request": {
+            "name": "Edit a plan: price and limits (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nChanges apply to every subscriber immediately (limits are read from the plan on each request). `null` limit = unlimited. The Free plan cannot be deactivated.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "plans",
+                ":code"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "type": "any",
+                  "value": "FREE",
+                  "key": "code",
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) ",
+                    "type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "PATCH",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dailyChatLimit\": 20,\n  \"dailySearchLimit\": 10\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin · AI Providers",
+      "description": "Admin only: add, configure and health-check AI providers.",
+      "item": [
+        {
+          "id": "1c379b00-551f-4b1c-93ea-f812422e1c11",
+          "name": "List all providers (admin)",
+          "request": {
+            "name": "List all providers (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nIncludes disabled ones. API keys are masked.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "providers"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "92807560-3a5b-4510-892d-1d982403f0e0",
+          "name": "Add a provider (admin)",
+          "request": {
+            "name": "Add a provider (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nThe API key is encrypted (AES-256-GCM) before it is stored and is never returned. The first enabled provider becomes the default automatically.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "providers"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"OpenAI\",\n  \"type\": \"OPENAI\",\n  \"apiKey\": \"sk-proj-xxxxxxxxxxxxxxxxxxxx\",\n  \"defaultModel\": \"gpt-4o-mini\",\n  \"models\": [\n    \"gpt-4o-mini\",\n    \"gpt-4o\"\n  ],\n  \"maxOutputTokens\": 2048,\n  \"isEnabled\": true,\n  \"isDefault\": false\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "const id = j.id;",
+                  "if (pm.response.code < 300 && id) pm.collectionVariables.set('providerId', id);"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "66c65faa-a890-46e2-9e81-ede3420ff861",
+          "name": "Get one provider (admin)",
+          "request": {
+            "name": "Get one provider (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "providers",
+                ":id"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "type": "any",
+                  "value": "{{providerId}}",
+                  "key": "id",
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) Provider id",
+                    "type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "eea29e38-a93b-4080-b75d-2d474d105659",
+          "name": "Edit a provider (admin)",
+          "request": {
+            "name": "Edit a provider (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nOnly the fields sent are changed. Send `apiKey` only to rotate the key.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "providers",
+                ":id"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "type": "any",
+                  "value": "{{providerId}}",
+                  "key": "id",
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) Provider id",
+                    "type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "PATCH",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"OpenAI\",\n  \"defaultModel\": \"gpt-4o-mini\",\n  \"models\": [\n    \"gpt-4o-mini\",\n    \"gpt-4o\"\n  ],\n  \"maxOutputTokens\": 2048,\n  \"apiKey\": \"sk-proj-new-key-xxxxxxxx\"\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "157a6839-9c40-4b23-b3e3-31bf6676d5df",
+          "name": "Enable a provider (admin)",
+          "request": {
+            "name": "Enable a provider (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "providers",
+                ":id",
+                "enable"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "type": "any",
+                  "value": "{{providerId}}",
+                  "key": "id",
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) Provider id",
+                    "type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "fd50d38e-1637-4560-812d-4c69b54a164f",
+          "name": "Disable a provider (admin)",
+          "request": {
+            "name": "Disable a provider (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nUsers can no longer pick it. If it was the default, another enabled provider takes over.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "providers",
+                ":id",
+                "disable"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "type": "any",
+                  "value": "{{providerId}}",
+                  "key": "id",
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) Provider id",
+                    "type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "20903dfe-6ed1-4207-93ba-88593243f1af",
+          "name": "Make this the default provider (admin)",
+          "request": {
+            "name": "Make this the default provider (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nMust be enabled.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "providers",
+                ":id",
+                "default"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "type": "any",
+                  "value": "{{providerId}}",
+                  "key": "id",
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) Provider id",
+                    "type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "d82389f9-c25d-4d51-8814-ad23fce3e855",
+          "name": "Run a health check (admin)",
+          "request": {
+            "name": "Run a health check (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nMakes a real authenticated call to the vendor (list models) and stores the result. An invalid key or unreachable vendor returns 200 with `health.status = UNHEALTHY` and the reason.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "providers",
+                ":id",
+                "health-check"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "type": "any",
+                  "value": "{{providerId}}",
+                  "key": "id",
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) Provider id",
+                    "type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "12158b2e-bf38-42d0-b70f-458984b9b8ca",
+          "name": "Delete a provider (admin)",
+          "request": {
+            "name": "Delete a provider (admin)",
+            "description": {
+              "content": "**Requires login** — the access token is sent in the `Authorization` header (click **Authorize**, or log in first on this page). Do not put it in the body.\n\nPast chats keep their messages. If it was the default, another enabled provider takes over.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "providers",
+                ":id"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "type": "any",
+                  "value": "{{providerId}}",
+                  "key": "id",
+                  "disabled": false,
+                  "description": {
+                    "content": "(Required) Provider id",
+                    "type": "text/plain"
+                  }
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "DELETE",
+            "body": {}
+          },
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ]
+    }
+  ],
+  "event": [],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "providerId",
+      "value": ""
+    },
+    {
+      "key": "conversationId",
+      "value": ""
+    },
+    {
+      "key": "searchId",
+      "value": ""
+    }
+  ],
+  "info": {
+    "_postman_id": "2a46baad-c26c-4cb2-ae1f-2ef6f10aa73a",
+    "name": "EchoGPT API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "EchoGPT backend API.\n\n1. Set `baseUrl` (default http://localhost:3000).\n2. Run **Auth → Create an account** or **Log in** — the tokens are saved to collection variables automatically and every protected request uses them.\n3. For admin requests, log in as the seeded admin (`ADMIN_EMAIL` / `ADMIN_PASSWORD`).\n4. Ids (`providerId`, `conversationId`, `searchId`, `userId`) are captured automatically by the requests that create or list them; edit the variables to target something else.\n\nFull reference: Swagger UI at {{baseUrl}}/docs."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  }
+}
