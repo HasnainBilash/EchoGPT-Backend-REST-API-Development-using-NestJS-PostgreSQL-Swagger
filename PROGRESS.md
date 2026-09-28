@@ -2,7 +2,7 @@
 
 A living log of what has been built, how, and what comes next. Anyone (human or AI assistant) can read this file and continue the work without any prior context.
 
-> **Resume here →** Phases 1–6 are done (1–5 pushed; 6 tested by the developer, awaiting the owner's re-test before push). **Next: Phase 7 — Admin Panel APIs.**
+> **Resume here →** Phases 1–7 are done (1–6 pushed; 7 tested by the developer, awaiting the owner's re-test before push). **Next: Phase 8 — Polish & submission.**
 
 ## The assignment in one paragraph
 
@@ -29,8 +29,8 @@ Build a production-ready REST backend for the [EchoGPT Chrome extension](https:/
 | 4 | AI Provider Management | ✅ Done |
 | 5 | Chat API | ✅ Done |
 | 6 | Web Search API | ✅ Done |
-| 7 | Admin Panel APIs | ⏭️ Next |
-| 8 | Polish & submission (Swagger sweep, Postman, README, final check) | ⬜ |
+| 7 | Admin Panel APIs | ✅ Done |
+| 8 | Polish & submission (Swagger sweep, Postman, README, final check) | ⏭️ Next |
 
 ---
 
@@ -115,7 +115,7 @@ Common mistakes: putting the access token in the body (it goes in the header / A
 | PATCH | `/users/me` | Any user | Update my name / avatar (only the fields sent) |
 | PATCH | `/users/me/password` | Any user | Change password → all devices signed out, fresh tokens for this one |
 | DELETE | `/users/me` | Any user | Delete my account (password required) |
-| PATCH | `/users/{id}/role` | **Admin** | Promote to ADMIN / demote to USER |
+| PATCH | `/admin/users/{id}/role` | **Admin** | Promote to ADMIN / demote to USER (moved under `/admin` in Phase 7) |
 
 **Checklist**
 
@@ -146,7 +146,7 @@ Common mistakes: putting the access token in the body (it goes in the header / A
 | 4 | `PATCH /users/me/password` with a wrong `currentPassword` | **403** "Current password is incorrect" |
 | 5 | Same with `newPassword` equal to the current one | **400** "must be different" |
 | 6 | Correct change | **200** + new tokens; login with the old password → **401** |
-| 7 | As a normal user: `PATCH /users/{your id}/role` `{ "role": "ADMIN" }` | **403** "Insufficient role" |
+| 7 | As a normal user: `PATCH /admin/users/{your id}/role` `{ "role": "ADMIN" }` | **403** "Insufficient role" |
 | 8 | Log in as `admin@echogpt.local` / `Admin12345`, repeat step 7 | **200**, role ADMIN (set it back to USER) |
 | 9 | As admin, demote your own id to USER | **409** "Cannot demote the last admin" |
 | 10 | Throwaway account: `DELETE /users/me` `{ "password": "..." }` | **200**; then `GET /users/me` → **401** "Account is no longer active" |
@@ -362,13 +362,74 @@ For a summary you can read, use the Mock AI provider (`npm run mock:ai`). The mo
 | 10 | More than 10 searches in a day on Free | **429** "Daily search limit reached…" |
 | 11 | `DELETE /search/history/{id}`, then `DELETE /search/history` | "Search deleted", then "Deleted N search(es)" |
 
-## Phase 7 — Admin Panel APIs
+---
 
-- [ ] Dashboard statistics
-- [ ] User management (list, view, change role, activate/deactivate)
-- [ ] Subscription management (change a user's plan)
-- [ ] API usage analytics and request logs (from `api_usage_logs`)
-- [ ] System health (database, providers, uptime)
+## Phase 7 — Admin Panel APIs ✅
+
+**Endpoints** (all **admin only**; normal users get 403)
+
+| Method | Path | What it does |
+| --- | --- | --- |
+| GET | `/admin/dashboard` | Headline numbers: users, plans, today's usage, content, providers, last-24h requests |
+| GET | `/admin/users?search=&role=&isActive=&page=&limit=` | List / search users with their plan |
+| GET | `/admin/users/{id}` | One user with activity stats |
+| PATCH | `/admin/users/{id}/role` | Promote / demote |
+| PATCH | `/admin/users/{id}/status` | Activate / deactivate (deactivate = signed out everywhere) |
+| DELETE | `/admin/users/{id}` | Delete a user |
+| GET | `/admin/subscriptions?plan=&status=` | List subscriptions |
+| PATCH | `/admin/subscriptions/{userId}` | Set a user's plan (e.g. grant Premium for N days) |
+| PATCH | `/admin/plans/{FREE\|PREMIUM}` | Edit a plan's price and daily limits |
+| GET | `/admin/analytics/usage?days=` | Chats / searches / tokens per day, per provider, top users |
+| GET | `/admin/analytics/requests?days=` | Requests / errors / latency per day, busiest endpoints, status codes |
+| GET | `/admin/request-logs?userId=&method=&statusCode=&minStatus=&path=&from=&to=` | Every API request, filterable |
+| GET | `/admin/system/health?refreshProviders=` | Database, runtime, provider health (`ok` / `degraded` / `down`) |
+| … | `/admin/providers/...` | AI provider management (built in Phase 4) |
+
+**Checklist**
+
+- [x] Dashboard statistics
+- [x] User management: list/search, view, role, activate/deactivate, delete
+- [x] Subscription management: list, set a user's plan, edit plan limits and prices
+- [x] AI provider management (Phase 4, already under `/admin/providers`)
+- [x] API usage analytics (usage + HTTP request analytics)
+- [x] Request logs with filters
+- [x] System health (with optional live provider re-check)
+- [x] Role change moved from `/users/{id}/role` to `/admin/users/{id}/role`, so every admin endpoint lives under `/admin`
+- [x] Request logs now also record the route pattern (e.g. `/api/v1/chat/conversations/:id`)
+- [x] Smoke tests: `src/admin/admin.spec.ts` (3 tests)
+
+**How it works (in plain words)**
+
+- **Everything under `/admin`** carries `@Roles('ADMIN')` at the controller level, so a single rule protects every admin endpoint.
+- **Where the numbers come from.** Nothing is tracked twice.
+  - Usage analytics read `usage_records`, the same rows that enforce the daily limits.
+  - Request analytics and logs read `api_usage_logs`, written for every request by the middleware added in Phase 1.
+  - The dashboard is a set of counts run in one database round-trip.
+- **Per-day charts** use SQL `date_trunc('day')` grouping, in UTC. Days with no activity are filled with zeros, so a chart never has gaps. All values are bound as query parameters, never pasted into SQL, so there is no SQL injection.
+- **Busiest endpoints.** The logger now stores the route *pattern*, so `/chat/conversations/abc` and `/chat/conversations/xyz` count as one endpoint.
+- **Deactivating a user** sets `isActive = false` and revokes all their sessions in the same transaction. Their next request fails ("Account is no longer active"), they can't refresh or log in, and reactivating lets them log in again. Admins can't deactivate or delete themselves, and the last active admin is always protected.
+- **Plans are editable.** Limits are read from the `plans` table on every request, so changing Free from 20 to 25 chats applies to everyone instantly. The Free plan can't be deactivated because every account falls back to it.
+- **System health status:** `down` means the database is unreachable. `degraded` means an *enabled* provider is unhealthy, or none is enabled. Otherwise it's `ok`. `refreshProviders=true` re-checks every enabled provider live, in parallel, first.
+
+**Test guide** (log in as `admin@echogpt.local` / `Admin12345`; create a normal test user too)
+
+| # | Do this | Expect |
+| --- | --- | --- |
+| 1 | As a normal user: `GET /admin/dashboard` | **403** |
+| 2 | As admin: `GET /admin/dashboard` | totals for users, plans, today's chats/searches, providers, requests |
+| 3 | `GET /admin/users?search=<part of the test email>` | the test user with `plan` and `subscriptionStatus` |
+| 4 | `GET /admin/users/{id}` | `stats`: conversations, searches, active sessions, today's usage |
+| 5 | `PATCH /admin/users/{id}/status` `{ "isActive": false }` | **200**; the user's token → **401** "Account is no longer active"; their login → **403** "deactivated" |
+| 6 | Same with `true` | the user can log in again |
+| 7 | `PATCH /admin/users/{your admin id}/status` `{ "isActive": false }` | **409** "You cannot deactivate your own account" |
+| 8 | `PATCH /admin/subscriptions/{user id}` `{ "plan": "PREMIUM", "periodDays": 7 }` | PREMIUM, ACTIVE, ends in 7 days |
+| 9 | `PATCH /admin/plans/FREE` `{ "dailyChatLimit": 25 }` | `GET /plans` shows 25 (set it back to 20) |
+| 10 | `PATCH /admin/plans/FREE` `{ "isActive": false }` | **409** |
+| 11 | `GET /admin/analytics/usage?days=7` | 7 daily rows (zeros included), usage per provider, top users |
+| 12 | `GET /admin/analytics/requests?days=7` | daily requests/errors/latency, top endpoints, status codes |
+| 13 | `GET /admin/request-logs?minStatus=400&limit=5` | only error responses, newest first |
+| 14 | `GET /admin/system/health?refreshProviders=true` | `degraded` while the fake-key OpenAI is enabled; Mock AI `HEALTHY` |
+| 15 | `DELETE /admin/users/{test user id}` | **200**; `GET` it → **404** |
 
 ## Phase 8 — Polish & submission
 

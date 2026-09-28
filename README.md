@@ -36,6 +36,7 @@ src/
   providers/             # AI provider management (admin), vendor adapters, health checks
   chat/                  # send prompt, AI reply, conversation history
   search/                # AI-assisted web search (DuckDuckGo), history, recent, suggestions
+  admin/                 # admin panel: dashboard, users, subscriptions, analytics, logs, health
 scripts/
   mock-ai-server.js      # OpenAI-compatible mock for demos without API keys
 ```
@@ -122,7 +123,6 @@ The API container applies migrations and seeds reference data automatically on s
 | `PATCH /api/v1/users/me` | Bearer | Update name / avatar |
 | `PATCH /api/v1/users/me/password` | Bearer | Change password (revokes all sessions, returns new tokens) |
 | `DELETE /api/v1/users/me` | Bearer | Delete my account (password required) |
-| `PATCH /api/v1/users/:id/role` | Admin | Promote / demote a user (the last admin is protected) |
 
 ## Subscriptions & usage limits
 
@@ -192,6 +192,27 @@ npm run mock:ai   # OpenAI-compatible mock on http://localhost:4010/v1
 ```
 
 Then, as an admin, add a provider: `{ "name": "Mock AI", "type": "OPENAI", "apiKey": "mock-key-1234", "defaultModel": "mock-echo", "baseUrl": "http://localhost:4010/v1" }`.
+
+## Admin panel
+
+All `/admin/*` endpoints require the `ADMIN` role (log in with the seeded `ADMIN_EMAIL`).
+
+| Endpoint | Description |
+| --- | --- |
+| `GET /api/v1/admin/dashboard` | Users, plans, today's usage, content, providers, last-24h requests |
+| `GET /api/v1/admin/users` | List / search users (`search`, `role`, `isActive`, pagination) |
+| `GET /api/v1/admin/users/:id` | User detail with activity stats |
+| `PATCH /api/v1/admin/users/:id/role` | Promote / demote (the last admin is protected) |
+| `PATCH /api/v1/admin/users/:id/status` | Activate / deactivate (deactivation revokes all sessions) |
+| `DELETE /api/v1/admin/users/:id` | Delete a user |
+| `GET /api/v1/admin/subscriptions` | List subscriptions (`plan`, `status`) |
+| `PATCH /api/v1/admin/subscriptions/:userId` | Set a user's plan (e.g. grant Premium for N days) |
+| `PATCH /api/v1/admin/plans/:code` | Edit a plan's price and daily limits |
+| `GET /api/v1/admin/analytics/usage?days=` | Chats, searches and tokens per day; per provider; top users |
+| `GET /api/v1/admin/analytics/requests?days=` | Requests, errors and latency per day; busiest endpoints; status codes |
+| `GET /api/v1/admin/request-logs` | Every API request, filterable (`userId`, `method`, `statusCode`, `minStatus`, `path`, `from`, `to`) |
+| `GET /api/v1/admin/system/health` | Database, runtime and provider health (`?refreshProviders=true` re-checks live) |
+| `/api/v1/admin/providers/...` | AI provider management (see above) |
 
 ## Useful scripts
 
