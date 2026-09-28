@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
+import { ChatModule } from './chat/chat.module';
 import { ProvidersModule } from './providers/providers.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { UsersModule } from './users/users.module';
@@ -37,6 +38,7 @@ import { PrismaModule } from './prisma/prisma.module';
     UsersModule,
     SubscriptionsModule,
     ProvidersModule,
+    ChatModule,
   ],
   controllers: [HealthController],
   providers: [
