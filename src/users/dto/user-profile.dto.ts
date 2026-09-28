@@ -20,6 +20,14 @@ export class UserProfileDto {
   @ApiProperty({ example: true })
   isActive: boolean;
 
+  @ApiProperty({
+    example: '2026-09-28T10:00:00.000Z',
+    nullable: true,
+    type: Date,
+    description: 'When the email address was verified; null = not verified yet.',
+  })
+  emailVerifiedAt: Date | null;
+
   @ApiProperty({ example: '2026-09-28T10:00:00.000Z', nullable: true, type: Date })
   lastLoginAt: Date | null;
 

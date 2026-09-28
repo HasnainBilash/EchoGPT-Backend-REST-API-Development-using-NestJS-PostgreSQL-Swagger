@@ -5,6 +5,7 @@ import { RoleName } from '@prisma/client';
 import { AppConfig } from '../config/configuration';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
+import { EmailVerificationService } from './email-verification.service';
 
 type Row = Record<string, unknown>;
 
@@ -26,7 +27,13 @@ function createFakePrisma() {
         return Promise.resolve(found ? { ...found, role } : null);
       }),
       create: jest.fn(({ data }: { data: Row }) => {
-        const user = { id: `user-${users.size + 1}`, isActive: true, ...data, role };
+        const user = {
+          id: `user-${users.size + 1}`,
+          isActive: true,
+          emailVerifiedAt: null,
+          ...data,
+          role,
+        };
         users.set(user.id, user);
         return Promise.resolve(user);
       }),
@@ -56,6 +63,7 @@ function createFakePrisma() {
 describe('AuthService (smoke)', () => {
   let service: AuthService;
   let prisma: ReturnType<typeof createFakePrisma>;
+  let verification: { issue: jest.Mock };
   const credentials = { email: 'jane@example.com', password: 'Str0ngPassw0rd' };
   const meta = { ipAddress: '127.0.0.1', userAgent: 'jest' };
 
@@ -69,7 +77,13 @@ describe('AuthService (smoke)', () => {
         refreshTtl: '30d',
       }),
     } as unknown as ConfigService<AppConfig, true>;
-    service = new AuthService(prisma as unknown as PrismaService, new JwtService(), config);
+    verification = { issue: jest.fn().mockResolvedValue(undefined) };
+    service = new AuthService(
+      prisma as unknown as PrismaService,
+      new JwtService(),
+      config,
+      verification as unknown as EmailVerificationService,
+    );
   });
 
   it('registers a user on the Free plan and returns a token pair', async () => {
@@ -86,6 +100,17 @@ describe('AuthService (smoke)', () => {
     // Password is hashed, never stored as-is.
     const stored = (prisma.user.create.mock.calls[0] as [{ data: Row }])[0].data;
     expect(stored.passwordHash).not.toBe(credentials.password);
+  });
+
+  it('sends a verification email on sign-up, and a mail failure does not block sign-up', async () => {
+    const res = await service.register(credentials, meta);
+    expect(verification.issue).toHaveBeenCalledWith(res.user.id, credentials.email);
+    expect(res.user.emailVerified).toBe(false);
+
+    verification.issue.mockRejectedValueOnce(new Error('SMTP down'));
+    await expect(
+      service.register({ ...credentials, email: 'other@example.com' }, meta),
+    ).resolves.toHaveProperty('accessToken');
   });
 
   it('rejects a duplicate email with 409', async () => {

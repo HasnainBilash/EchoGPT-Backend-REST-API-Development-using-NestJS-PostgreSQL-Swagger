@@ -1,4 +1,14 @@
-import { Body, Controller, Headers, HttpCode, HttpStatus, Ip, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Ip,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -16,6 +26,8 @@ import { AuthResponseDto, MessageResponseDto } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
+import { EmailVerificationService } from './email-verification.service';
 
 /** Stricter limit for credential endpoints: 10 attempts per minute per IP. */
 const CREDENTIAL_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
@@ -23,7 +35,10 @@ const CREDENTIAL_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly verification: EmailVerificationService,
+  ) {}
 
   @Public()
   @Post('register')
@@ -73,6 +88,51 @@ export class AuthController {
   @ApiErrorResponses(400, 401)
   refresh(@Body() dto: RefreshTokenDto): Promise<AuthResponseDto> {
     return this.auth.refresh(dto.refreshToken);
+  }
+
+  @Public()
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @Throttle(CREDENTIAL_THROTTLE)
+  @ApiOperation({
+    summary: 'Verify an email address',
+    description:
+      'Confirms the address with the token from the verification email. Tokens are single-use ' +
+      'and expire after 24 hours.',
+  })
+  @ApiOkResponse({ type: MessageResponseDto })
+  @ApiErrorResponses(400, 429)
+  async verifyEmail(@Body() dto: VerifyEmailDto): Promise<MessageResponseDto> {
+    const { email } = await this.verification.verify(dto.token);
+    return { message: `Email ${email} verified` };
+  }
+
+  @Public()
+  @Get('verify-email')
+  @Throttle(CREDENTIAL_THROTTLE)
+  @ApiOperation({
+    summary: 'Verify an email address (link from the email)',
+    description: 'Same as POST, for the link in the email: `?token=...`.',
+  })
+  @ApiOkResponse({ type: MessageResponseDto })
+  @ApiErrorResponses(400, 429)
+  async verifyEmailLink(@Query() dto: VerifyEmailDto): Promise<MessageResponseDto> {
+    return this.verifyEmail(dto);
+  }
+
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  @Throttle(CREDENTIAL_THROTTLE)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Resend the verification email',
+    description: 'Sends a new link and invalidates any previous unused one.',
+  })
+  @ApiOkResponse({ type: MessageResponseDto })
+  @ApiErrorResponses(401, 409, 429)
+  async resendVerification(@CurrentUser() user: AuthenticatedUser): Promise<MessageResponseDto> {
+    await this.verification.resend(user.id);
+    return { message: 'Verification email sent' };
   }
 
   @Post('logout')

@@ -20,6 +20,7 @@ const PROFILE_SELECT = {
   fullName: true,
   avatarUrl: true,
   isActive: true,
+  emailVerifiedAt: true,
   lastLoginAt: true,
   createdAt: true,
   updatedAt: true,

@@ -13,6 +13,9 @@ export class AuthUserDto {
 
   @ApiProperty({ enum: RoleName, example: RoleName.USER })
   role: RoleName;
+
+  @ApiProperty({ example: false, description: 'Whether the email address has been verified.' })
+  emailVerified: boolean;
 }
 
 export class AuthTokensDto {

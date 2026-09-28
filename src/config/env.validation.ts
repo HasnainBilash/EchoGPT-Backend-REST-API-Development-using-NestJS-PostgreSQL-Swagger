@@ -5,6 +5,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUrl,
   Matches,
   Max,
   Min,
@@ -72,6 +73,41 @@ export class EnvironmentVariables {
     message: 'ENCRYPTION_KEY must be 64 hex characters (32 bytes), e.g. `openssl rand -hex 32`',
   })
   ENCRYPTION_KEY: string;
+
+  @Transform(toInt)
+  @IsInt()
+  @Min(0)
+  SEARCH_CACHE_TTL_SECONDS = 3600;
+
+  @IsOptional()
+  @IsUrl({ require_tld: false, require_protocol: true })
+  EMAIL_VERIFICATION_URL?: string;
+
+  @IsOptional()
+  @IsString()
+  SMTP_HOST?: string;
+
+  @Transform(toInt)
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  SMTP_PORT = 587;
+
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  SMTP_SECURE?: string;
+
+  @IsOptional()
+  @IsString()
+  SMTP_USER?: string;
+
+  @IsOptional()
+  @IsString()
+  SMTP_PASS?: string;
+
+  @IsOptional()
+  @IsString()
+  MAIL_FROM?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>): EnvironmentVariables {

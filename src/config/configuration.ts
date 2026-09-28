@@ -27,6 +27,23 @@ export const configuration = () => {
       refreshTtl: env.JWT_REFRESH_TTL ?? '30d',
     },
     crypto: { encryptionKey: env.ENCRYPTION_KEY as string },
+    search: { cacheTtlSeconds: num(env.SEARCH_CACHE_TTL_SECONDS, 3600) },
+    mail: {
+      // Where the link in the verification email points; the token is appended as ?token=...
+      verificationUrl:
+        env.EMAIL_VERIFICATION_URL ||
+        `http://localhost:${num(env.PORT, 3000)}/api/v1/auth/verify-email`,
+      from: env.MAIL_FROM || 'EchoGPT <no-reply@echogpt.local>',
+      smtp: env.SMTP_HOST
+        ? {
+            host: env.SMTP_HOST,
+            port: num(env.SMTP_PORT, 587),
+            secure: env.SMTP_SECURE === 'true',
+            user: env.SMTP_USER,
+            pass: env.SMTP_PASS,
+          }
+        : null,
+    },
   };
 };
 

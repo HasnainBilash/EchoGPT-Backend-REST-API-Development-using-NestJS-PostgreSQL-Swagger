@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -14,6 +15,7 @@ import { AppConfig } from '../config/configuration';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
+import { EmailVerificationService } from './email-verification.service';
 import { RegisterDto } from './dto/register.dto';
 import { AccessTokenPayload, RefreshTokenPayload } from './types/jwt-payload.type';
 
@@ -32,10 +34,13 @@ export class AuthService {
   /** Compared against when the email doesn't exist, so login timing doesn't reveal registered emails. */
   private readonly dummyHash = bcrypt.hashSync('timing-safe-dummy-password', BCRYPT_ROUNDS);
 
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     config: ConfigService<AppConfig, true>,
+    private readonly verification: EmailVerificationService,
   ) {
     this.jwtConfig = config.get('jwt', { infer: true });
   }
@@ -75,6 +80,13 @@ export class AuthService {
         throw new ConflictException('An account with this email already exists');
       }
       throw err;
+    }
+
+    try {
+      await this.verification.issue(user.id, user.email);
+    } catch (err) {
+      // A mail outage must not block sign-up; the user can request a new link later.
+      this.logger.warn(`Verification email to ${user.email} failed: ${(err as Error).message}`);
     }
 
     return this.issueTokens(user, meta);
@@ -210,7 +222,13 @@ export class AuthService {
   }
 
   private toAuthUser(user: UserWithRole): AuthUserDto {
-    return { id: user.id, email: user.email, fullName: user.fullName, role: user.role.name };
+    return {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role.name,
+      emailVerified: user.emailVerifiedAt !== null,
+    };
   }
 
   private signAccessToken(user: UserWithRole): string {

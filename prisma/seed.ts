@@ -73,6 +73,7 @@ async function seedAdmin() {
       email,
       passwordHash: await bcrypt.hash(password, 10),
       fullName: 'Administrator',
+      emailVerifiedAt: new Date(),
       roleId: adminRole.id,
       subscription: { create: { planId: premium.id } },
     },
