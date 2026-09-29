@@ -1,6 +1,6 @@
-# EchoGPT Backend — Progress & Handover
+# EchoGPT Backend — Development Log
 
-A development log of what was built, how each part works, and how to test it — written so anyone can pick the project up without prior context.
+What was built in each phase, how each part works, and how to test it.
 
 > **Status:** all phases (0–9) are complete, including the three bonus features.
 
